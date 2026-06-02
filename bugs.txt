@@ -1,0 +1,6 @@
+1) So when i settle a lent money, then it returns back to my total spent that is added to total spend, it must be added to total savings instead but
+2) there is no logout option, and also make sure to add remember me option which works in login / sign up page,
+3)add date filters with also sorting features, also in filter there must be source filter 
+4) there must be direct option to delete(button) a transaction, and even a edit buttion, also in edit mode there must be delete option
+5)also what is that monthly allowance feature, how do i even use this, its not seem to be usable?
+6) also savings and budget in same? also add budget feature of my budget even in dashboard and in settings page, and summing all those category it must sum up, also a piechart with percentage of how much more i can spent from my budget of that monthly
