@@ -1,18 +1,34 @@
 import { useFinanceStore } from '../store/useFinanceStore';
-import { Search, Filter, Wallet, Download, ChevronDown, Edit3, Trash2 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { Search, Filter, Wallet, Download, ChevronDown, Edit3, Trash2, CheckSquare, Square } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { exportTransactionsToExcel } from '../utils/exportExcel';
 import { isWithinInterval, parseISO } from 'date-fns';
 import EditTransactionModal from './EditTransactionModal';
+import DeleteAuthModal from './DeleteAuthModal';
 
 export default function TransactionLog() {
   const transactions = useFinanceStore(state => state.transactions);
   const deleteTransaction = useFinanceStore(state => state.deleteTransaction);
   const getUniqueMerchants = useFinanceStore(state => state.getUniqueMerchants);
+  const requirePasswordForDelete = useFinanceStore(state => state.requirePasswordForDelete);
+  const isDeleteModeUnlocked = useFinanceStore(state => state.isDeleteModeUnlocked);
   
   const [searchTerm, setSearchTerm] = useState('');
   
   const [showFilter, setShowFilter] = useState(false);
+  const filterRef = useRef(null);
+  const [selectedTxIds, setSelectedTxIds] = useState(new Set());
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterRef.current && !filterRef.current.contains(event.target)) {
+        setShowFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
   const [filterType, setFilterType] = useState('All');
   const [filterSource, setFilterSource] = useState('All');
   const [startDate, setStartDate] = useState('');
@@ -20,6 +36,7 @@ export default function TransactionLog() {
   const [sortBy, setSortBy] = useState('Date (Newest)');
   
   const [editingTx, setEditingTx] = useState(null);
+  const [pendingDeleteTx, setPendingDeleteTx] = useState(null);
 
   const filteredTx = useMemo(() => {
     let result = transactions.filter(tx => {
@@ -47,10 +64,36 @@ export default function TransactionLog() {
     return result;
   }, [transactions, searchTerm, filterType, filterSource, startDate, endDate, sortBy]);
 
-  const handleDelete = (e, id) => {
+  const handleDelete = (e, tx) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this transaction?")) {
-      deleteTransaction(id);
+    if (requirePasswordForDelete && !isDeleteModeUnlocked) {
+      setPendingDeleteTx({ isBulk: false, ids: [tx.id], amount: tx.amount });
+    } else {
+      if (window.confirm("Are you sure you want to delete this transaction?")) {
+        deleteTransaction(tx.id);
+      }
+    }
+  };
+
+  const handleToggleSelect = (e, id) => {
+    e.stopPropagation();
+    const newSet = new Set(selectedTxIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedTxIds(newSet);
+  };
+
+  const handleDeleteSelected = () => {
+    if (requirePasswordForDelete && !isDeleteModeUnlocked) {
+      setPendingDeleteTx({ isBulk: true, ids: Array.from(selectedTxIds) });
+    } else {
+      if (window.confirm(`Are you sure you want to delete ${selectedTxIds.size} transactions?`)) {
+        selectedTxIds.forEach(id => deleteTransaction(id));
+        setSelectedTxIds(new Set());
+      }
     }
   };
 
@@ -77,7 +120,7 @@ export default function TransactionLog() {
               className="w-full bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:border-[var(--accent-violet)] transition-colors text-sm"
             />
           </div>
-          <div className="relative z-10">
+          <div className="relative z-10" ref={filterRef}>
             <button 
               onClick={() => setShowFilter(!showFilter)}
               className={`surface-card px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm font-medium ${showFilter ? 'bg-[var(--bg-surface-lit)] text-[var(--text-main)]' : 'hover:bg-[var(--bg-surface-lit)]'}`}
@@ -144,15 +187,37 @@ export default function TransactionLog() {
       </header>
 
       <div className="flex-1 overflow-y-auto min-h-[400px]">
+        {selectedTxIds.size > 0 && (
+          <div className="flex justify-between items-center bg-[var(--status-red)]/10 text-[var(--status-red)] p-3 rounded-xl mb-4 animate-[popIn_150ms_ease-out]">
+            <span className="text-sm font-bold ml-2">{selectedTxIds.size} transaction{selectedTxIds.size > 1 ? 's' : ''} selected</span>
+            <button 
+              onClick={handleDeleteSelected} 
+              className="flex items-center gap-2 text-sm font-bold bg-[var(--status-red)] text-white px-4 py-2 rounded-lg active:scale-95 transition-transform shadow-lg shadow-[var(--status-red)]/20"
+            >
+              <Trash2 size={16} /> Delete Selected
+            </button>
+          </div>
+        )}
         <div className="surface-card divide-y divide-[var(--bg-surface-lit)]">
           {filteredTx.length > 0 ? filteredTx.map((tx) => (
             <div 
               key={tx.id} 
               onDoubleClick={() => setEditingTx(tx)}
-              className="p-4 flex items-center justify-between hover:bg-[var(--bg-surface-lit)] transition-colors cursor-pointer group select-none"
-              title="Double click to edit"
+              onClick={(e) => handleToggleSelect(e, tx.id)}
+              className={`p-4 flex items-center justify-between hover:bg-[var(--bg-surface-lit)] transition-colors cursor-pointer group select-none ${selectedTxIds.has(tx.id) ? 'bg-[var(--accent-violet)]/5' : ''}`}
+              title="Click to select, double click to edit"
             >
               <div className="flex items-center gap-4">
+                <button 
+                  onClick={(e) => handleToggleSelect(e, tx.id)}
+                  className="text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors focus:outline-none flex items-center justify-center p-1"
+                >
+                  {selectedTxIds.has(tx.id) ? (
+                    <CheckSquare size={20} className="text-[var(--accent-violet)]" />
+                  ) : (
+                    <Square size={20} />
+                  )}
+                </button>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   tx.category === 'Food & Dining' ? 'bg-orange-500/10 text-orange-500' :
                   tx.category === 'Transport' ? 'bg-blue-500/10 text-blue-500' :
@@ -184,7 +249,7 @@ export default function TransactionLog() {
                   <button onClick={(e) => { e.stopPropagation(); setEditingTx(tx); }} className="p-1.5 rounded bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors">
                     <Edit3 size={14} />
                   </button>
-                  <button onClick={(e) => handleDelete(e, tx.id)} className="p-1.5 rounded bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--status-red)] transition-colors">
+                  <button onClick={(e) => handleDelete(e, tx)} className="p-1.5 rounded bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--status-red)] transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -202,6 +267,12 @@ export default function TransactionLog() {
         isOpen={!!editingTx} 
         transaction={editingTx} 
         onClose={() => setEditingTx(null)} 
+      />
+      <DeleteAuthModal 
+        isOpen={!!pendingDeleteTx} 
+        transaction={pendingDeleteTx} 
+        onClose={() => setPendingDeleteTx(null)} 
+        onConfirm={(id) => deleteTransaction(id)} 
       />
     </div>
   );

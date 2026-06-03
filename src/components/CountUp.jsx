@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export default function CountUp({ value, duration = 2500, formatter = (v) => v, className = '' }) {
+export default function CountUp({ value, duration = 500, formatter = (v) => v, className = '' }) {
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
@@ -14,8 +14,8 @@ export default function CountUp({ value, duration = 2500, formatter = (v) => v, 
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / duration, 1);
       
-      // easeOutExpo (steep curve)
-      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      // easeOutQuart for a smoother, richer deceleration
+      const easeProgress = 1 - Math.pow(1 - progress, 4);
       
       setDisplayValue(startValue + (endValue - startValue) * easeProgress);
 

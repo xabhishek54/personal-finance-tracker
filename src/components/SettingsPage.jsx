@@ -2,9 +2,10 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { Save, SlidersHorizontal, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import ClearDataModal from './ClearDataModal';
+import SecurityAuthModal from './SecurityAuthModal';
 
 export default function SettingsPage() {
-  const { budgets, updateBudget, includeLendBorrow, setIncludeLendBorrow, useGlobalBudget, globalBudgetLimit, setGlobalBudgetOptions, budgetCycle, setBudgetCycle } = useFinanceStore();
+  const { budgets, updateBudget, includeLendBorrow, setIncludeLendBorrow, useGlobalBudget, globalBudgetLimit, setGlobalBudgetOptions, budgetCycle, setBudgetCycle, requirePasswordForDelete, setRequirePasswordForDelete } = useFinanceStore();
   
   const [localBudgets, setLocalBudgets] = useState(
     Object.keys(budgets).reduce((acc, cat) => {
@@ -17,6 +18,15 @@ export default function SettingsPage() {
   const [localGlobalLimit, setLocalGlobalLimit] = useState(globalBudgetLimit);
   const [saved, setSaved] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [showDisableSecurityAuth, setShowDisableSecurityAuth] = useState(false);
+
+  const handleSecurityToggle = (checked) => {
+    if (!checked && requirePasswordForDelete) {
+      setShowDisableSecurityAuth(true);
+    } else {
+      setRequirePasswordForDelete(true);
+    }
+  };
 
   const handleSaveBudgets = () => {
     if (localUseGlobal) {
@@ -158,6 +168,25 @@ export default function SettingsPage() {
           </div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex flex-col">
+              <span className="font-medium">Require Password on Delete</span>
+              <span className="text-xs text-[var(--text-muted)] mt-1">
+                If enabled, deleting any transaction will prompt for your password.
+              </span>
+            </div>
+            
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={requirePasswordForDelete}
+                onChange={(e) => handleSecurityToggle(e.target.checked)}
+              />
+              <div className="w-11 h-6 bg-[var(--bg-surface-lit)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--status-red)]"></div>
+            </label>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-[var(--status-red)]/10">
+            <div className="flex flex-col">
               <span className="font-medium">Clear Transaction Data</span>
               <span className="text-xs text-[var(--text-muted)] mt-1">
                 Permanently delete all or some of your transactions. This requires password verification.
@@ -165,7 +194,7 @@ export default function SettingsPage() {
             </div>
             <button 
               onClick={() => setIsClearModalOpen(true)}
-              className="px-4 py-2 text-sm font-bold bg-[var(--status-red)]/10 text-[var(--status-red)] hover:bg-[var(--status-red)] hover:text-white rounded-xl transition-colors whitespace-nowrap"
+              className="px-4 py-2 text-sm font-bold bg-[var(--status-red)]/10 text-[var(--status-red)] hover:bg-[var(--status-red)] hover:text-white rounded-xl transition-colors whitespace-nowrap shrink-0"
             >
               Clear Data...
             </button>
@@ -175,6 +204,13 @@ export default function SettingsPage() {
       </div>
 
       <ClearDataModal isOpen={isClearModalOpen} onClose={() => setIsClearModalOpen(false)} />
+      <SecurityAuthModal 
+        isOpen={showDisableSecurityAuth} 
+        onClose={() => setShowDisableSecurityAuth(false)} 
+        onSuccess={() => setRequirePasswordForDelete(false)}
+        title="Disable Security Feature"
+        message="Please enter your password to disable transaction deletion security."
+      />
     </div>
   );
 }

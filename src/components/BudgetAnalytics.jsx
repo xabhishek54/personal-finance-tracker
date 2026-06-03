@@ -249,7 +249,7 @@ export default function BudgetAnalytics() {
                 </div>
                 <div className="h-2 w-full bg-[var(--bg-surface-lit)] rounded-full overflow-hidden">
                   <div 
-                    className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${
                       isDanger ? 'bg-[var(--status-red)]' : 
                       isWarning ? 'bg-[var(--status-yellow)]' : 
                       'bg-[var(--accent-violet)]'

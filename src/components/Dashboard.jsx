@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useAuth } from '../context/AuthContext';
@@ -8,11 +8,21 @@ import { format, parseISO } from 'date-fns';
 import CountUp from './CountUp';
 
 export default function Dashboard() {
-  const { transactions, budgets, theme, toggleTheme, getSmartInsights, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle } = useFinanceStore();
+  const { transactions, budgets, theme, toggleTheme, getSmartInsights, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle, hasUnreadNotifications, markNotificationsRead } = useFinanceStore();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
+  const notificationRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const now = new Date();
   const cycleTxs = transactions.filter(t => {
@@ -48,7 +58,9 @@ export default function Dashboard() {
   
   const handleNotificationClick = () => {
     setShowNotifications(!showNotifications);
-    setHasUnreadNotifications(false);
+    if (hasUnreadNotifications) {
+      markNotificationsRead();
+    }
   };
 
   const today = new Date();
@@ -71,31 +83,31 @@ export default function Dashboard() {
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <button 
-            onClick={handleNotificationClick}
-            className="p-2 rounded-full surface-card hover:bg-[var(--bg-surface-lit)] transition-colors relative"
-          >
-            <Bell size={20} />
-            {hasUnreadNotifications && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--status-yellow)] rounded-full animate-pulse"></span>
+          <div className="relative" ref={notificationRef}>
+            <button 
+              onClick={handleNotificationClick}
+              className="p-2 rounded-full surface-card hover:bg-[var(--bg-surface-lit)] transition-colors relative"
+            >
+              <Bell size={20} />
+              {hasUnreadNotifications && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--status-yellow)] rounded-full animate-pulse"></span>
+              )}
+            </button>
+            {showNotifications && (
+              <div className="absolute top-full right-0 mt-2 w-64 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-xl z-30 p-2 animate-[popIn_200ms_ease-out]">
+                <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 px-2">Notifications</h3>
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm p-2 hover:bg-[var(--bg-surface-lit)] rounded-lg transition-colors cursor-pointer">
+                    <strong>New Feature:</strong> Lend & Borrow tracker is now live!
+                  </div>
+                  <div className="text-sm p-2 hover:bg-[var(--bg-surface-lit)] rounded-lg transition-colors cursor-pointer text-[var(--status-yellow)]">
+                    <strong>Budget Warning:</strong> You're nearing your limit for Food & Dining.
+                  </div>
+                </div>
+              </div>
             )}
-          </button>
-        </div>
-        
-        {/* Notifications Dropdown */}
-        {showNotifications && (
-          <div className="absolute top-full right-0 mt-2 w-64 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-xl z-30 p-2 animate-[popIn_200ms_ease-out]">
-            <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 px-2">Notifications</h3>
-            <div className="flex flex-col gap-1">
-              <div className="text-sm p-2 hover:bg-[var(--bg-surface-lit)] rounded-lg transition-colors cursor-pointer">
-                <strong>New Feature:</strong> Lend & Borrow tracker is now live!
-              </div>
-              <div className="text-sm p-2 hover:bg-[var(--bg-surface-lit)] rounded-lg transition-colors cursor-pointer text-[var(--status-yellow)]">
-                <strong>Budget Warning:</strong> You're nearing your limit for Food & Dining.
-              </div>
-            </div>
           </div>
-        )}
+        </div>
       </header>
 
       {/* Smart Insights Section */}
@@ -182,7 +194,7 @@ export default function Dashboard() {
                 strokeDasharray="251.2" 
                 strokeDashoffset={251.2 - (251.2 * Math.min(budgetPercentage, 100)) / 100}
                 strokeLinecap="round"
-                className="transition-all duration-1000 ease-out"
+                className="transition-all duration-500 ease-out"
               />
             </svg>
             <div className="flex flex-col items-center text-center">

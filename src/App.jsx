@@ -24,7 +24,6 @@ function PrivateRoute({ children }) {
 const SyncWrapper = ({ children }) => {
   const { currentUser } = useAuth();
   const initializeUserSync = useFinanceStore(state => state.initializeUserSync);
-  const { hasCompletedOnboarding, completeOnboarding } = useFinanceStore();
   
   useEffect(() => {
     if (currentUser) {
@@ -35,12 +34,7 @@ const SyncWrapper = ({ children }) => {
     }
   }, [currentUser, initializeUserSync]);
   
-  return (
-    <>
-      {children}
-      {currentUser && <OnboardingModal isOpen={!hasCompletedOnboarding} onClose={completeOnboarding} />}
-    </>
-  );
+  return <>{children}</>;
 };
 
 const PageTitleUpdater = () => {
@@ -179,6 +173,10 @@ export default function App() {
                 </button>
 
                 <AddTransactionModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+                <OnboardingModal 
+                  isOpen={!useFinanceStore(state => state.hasCompletedOnboarding)} 
+                  onClose={() => useFinanceStore.getState().completeOnboarding()} 
+                />
               </div>
             </PrivateRoute>
           } />

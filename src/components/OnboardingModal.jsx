@@ -43,22 +43,15 @@ export default function OnboardingModal({ isOpen, onClose }) {
 
           <div className="w-full mt-6 flex flex-col gap-2 text-left">
             <label className="text-sm font-semibold">Set Global Monthly Budget (₹)</label>
-            <div className="relative">
-              <select 
-                value={budgetLimit}
-                onChange={(e) => setBudgetLimit(Number(e.target.value))}
-                className="w-full p-3.5 rounded-xl bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] outline-none appearance-none font-bold"
-              >
-                <option value={1000}>₹1,000</option>
-                <option value={2000}>₹2,000</option>
-                <option value={5000}>₹5,000</option>
-                <option value={10000}>₹10,000</option>
-                <option value={20000}>₹20,000</option>
-                <option value={50000}>₹50,000</option>
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]">
-                ▼
-              </div>
+            <div className="flex items-center bg-[var(--bg-surface-lit)] rounded-xl px-4 py-3.5 border border-transparent focus-within:border-[var(--accent-violet)] transition-colors">
+              <span className="text-[var(--text-muted)] mr-2 font-bold">₹</span>
+              <input 
+                type="number"
+                value={budgetLimit || ''}
+                onChange={(e) => setBudgetLimit(e.target.value)}
+                placeholder="2000"
+                className="bg-transparent w-full focus:outline-none text-base tabular-nums font-bold text-[var(--text-main)]"
+              />
             </div>
             <p className="text-xs text-[var(--text-muted)] mt-1">You can change this anytime in Settings.</p>
           </div>

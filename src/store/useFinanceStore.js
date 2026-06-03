@@ -14,10 +14,13 @@ export const useFinanceStore = create((set, get) => ({
   },
   useGlobalBudget: false,
   globalBudgetLimit: 50000,
-  budgetCycle: '1 month', // '1 month', '2 months', '1 year', 'never'
-  theme: 'dark',
-  includeLendBorrow: false,
+  budgetCycle: '1 month', // options: '1 month', '2 months', '1 year', 'never'
+  theme: 'dark', // 'dark' or 'light'
+  includeLendBorrow: false, // if true, lends count as expenses, borrows count as income
   hasCompletedOnboarding: true,
+  hasUnreadNotifications: true,
+  requirePasswordForDelete: false,
+  isDeleteModeUnlocked: false,
   isInitialized: false,
   
   completeOnboarding: async () => {
@@ -77,6 +80,8 @@ export const useFinanceStore = create((set, get) => ({
         if (data.useGlobalBudget !== undefined) set({ useGlobalBudget: data.useGlobalBudget });
         if (data.globalBudgetLimit !== undefined) set({ globalBudgetLimit: data.globalBudgetLimit });
         if (data.budgetCycle !== undefined) set({ budgetCycle: data.budgetCycle });
+        if (data.hasUnreadNotifications !== undefined) set({ hasUnreadNotifications: data.hasUnreadNotifications });
+        if (data.requirePasswordForDelete !== undefined) set({ requirePasswordForDelete: data.requirePasswordForDelete });
         // If data exists but hasCompletedOnboarding is missing (legacy user), assume true.
         if (data.hasCompletedOnboarding !== undefined) {
           set({ hasCompletedOnboarding: data.hasCompletedOnboarding });
@@ -85,7 +90,7 @@ export const useFinanceStore = create((set, get) => ({
         }
       } else {
         // Create initial document for brand new user
-        set({ hasCompletedOnboarding: false });
+        set({ hasCompletedOnboarding: false, hasUnreadNotifications: true, requirePasswordForDelete: false });
         setDoc(userDocRef, {
           budgets: get().budgets,
           theme: get().theme,
@@ -93,7 +98,9 @@ export const useFinanceStore = create((set, get) => ({
           useGlobalBudget: get().useGlobalBudget,
           globalBudgetLimit: get().globalBudgetLimit,
           budgetCycle: get().budgetCycle,
-          hasCompletedOnboarding: false
+          hasCompletedOnboarding: false,
+          hasUnreadNotifications: true,
+          requirePasswordForDelete: false
         });
       }
     });
@@ -151,11 +158,37 @@ export const useFinanceStore = create((set, get) => ({
         budgetCycle: '1 month',
         theme: 'dark',
         includeLendBorrow: false,
-        hasCompletedOnboarding: true
+        hasCompletedOnboarding: true,
+        hasUnreadNotifications: true,
+        requirePasswordForDelete: false
       });
     };
   },
   
+  markNotificationsRead: async () => {
+    set({ hasUnreadNotifications: false });
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await updateDoc(doc(db, 'users', uid), { hasUnreadNotifications: false });
+    }
+  },
+  
+  setRequirePasswordForDelete: async (requirePw) => {
+    set({ requirePasswordForDelete: requirePw });
+    // When re-enabling security, immediately lock the session again
+    if (requirePw) {
+      set({ isDeleteModeUnlocked: false });
+    }
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await updateDoc(doc(db, 'users', uid), { requirePasswordForDelete: requirePw });
+    }
+  },
+
+  setDeleteModeUnlocked: (unlocked) => {
+    set({ isDeleteModeUnlocked: unlocked });
+  },
+
   addTransaction: async (tx) => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
