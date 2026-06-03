@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Mail, Lock, LogIn, UserPlus } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, User } from 'lucide-react';
 import { auth } from '../../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -22,7 +23,8 @@ export default function Login() {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       
       if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: name });
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
@@ -50,6 +52,23 @@ export default function Login() {
           {error && (
             <div className="bg-[var(--status-red)]/10 text-[var(--status-red)] p-3 rounded-xl text-sm font-medium border border-[var(--status-red)]/20 animate-[popIn_200ms_ease-out]">
               {error}
+            </div>
+          )}
+
+          {isRegistering && (
+            <div className="flex flex-col gap-1.5 relative">
+              <label className="text-xs text-[var(--text-muted)] font-medium ml-1">Full Name</label>
+              <div className="relative flex items-center">
+                <User className="absolute left-4 text-[var(--text-muted)] pointer-events-none" size={18} />
+                <input 
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none transition-colors"
+                />
+              </div>
             </div>
           )}
 

@@ -1,6 +1,8 @@
-1) So when i settle a lent money, then it returns back to my total spent that is added to total spend, it must be added to total savings instead but
-2) there is no logout option, and also make sure to add remember me option which works in login / sign up page,
-3)add date filters with also sorting features, also in filter there must be source filter 
-4) there must be direct option to delete(button) a transaction, and even a edit buttion, also in edit mode there must be delete option
-5)also what is that monthly allowance feature, how do i even use this, its not seem to be usable?
-6) also savings and budget in same? also add budget feature of my budget even in dashboard and in settings page, and summing all those category it must sum up, also a piechart with percentage of how much more i can spent from my budget of that monthly
+1) The number increasing animation should be exponential, and should be features
+2) Is there a system for calendar, like in dashboard it must say todays date, day and month
+3) Then, there must be system like the total savings, total spent, budget must reset when next month comes(User must be able disable this in settings though, like set budget for 1 month, 2month or year may be in budget place) but next month the transaction must not reset like all the transactions must be there is used filter of all the dates, but by default it must show just the transaction of that month
+4) light mode dont work, fix it
+5) when new user registers, ask them to set the budget using an interactive dropdown shown just for the first time, its not compulsory to set, just optional, but by default you must give budget of 2k and use global budget limit must be turned on
+6)also save each and every setting for a particular user in the database, so it dont change back when the user logs back it
+7) the + icon in mobile mode covers the below bar fix that
+8) when enable the global budget limit then the piechart of analytics disappears

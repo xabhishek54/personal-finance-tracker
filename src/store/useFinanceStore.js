@@ -12,12 +12,54 @@ export const useFinanceStore = create((set, get) => ({
     'Entertainment': { limit: 3000, spent: 0 },
     'Rent & Utilities': { limit: 15000, spent: 0 },
   },
+  useGlobalBudget: false,
+  globalBudgetLimit: 50000,
+  budgetCycle: '1 month', // '1 month', '2 months', '1 year', 'never'
   theme: 'dark',
   includeLendBorrow: false,
+  hasCompletedOnboarding: true,
   isInitialized: false,
   
-  toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
-  setIncludeLendBorrow: (val) => set({ includeLendBorrow: val }),
+  completeOnboarding: async () => {
+    set({ hasCompletedOnboarding: true });
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await updateDoc(doc(db, 'users', uid), { hasCompletedOnboarding: true });
+    }
+  },
+
+  toggleTheme: () => {
+    const newTheme = get().theme === 'dark' ? 'light' : 'dark';
+    set({ theme: newTheme });
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      updateDoc(doc(db, 'users', uid), { theme: newTheme });
+    }
+  },
+  setIncludeLendBorrow: (val) => {
+    set({ includeLendBorrow: val });
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      updateDoc(doc(db, 'users', uid), { includeLendBorrow: val });
+    }
+  },
+  setBudgetCycle: async (cycle) => {
+    set({ budgetCycle: cycle });
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await updateDoc(doc(db, 'users', uid), { budgetCycle: cycle });
+    }
+  },
+  setGlobalBudgetOptions: async (useGlobal, limit) => {
+    set({ useGlobalBudget: useGlobal, globalBudgetLimit: limit });
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await updateDoc(doc(db, 'users', uid), { 
+        useGlobalBudget: useGlobal, 
+        globalBudgetLimit: limit 
+      });
+    }
+  },
   
   // Call this when the user logs in to start real-time sync
   initializeUserSync: (uid) => {
@@ -32,12 +74,26 @@ export const useFinanceStore = create((set, get) => ({
         if (data.budgets) set({ budgets: data.budgets });
         if (data.theme) set({ theme: data.theme });
         if (data.includeLendBorrow !== undefined) set({ includeLendBorrow: data.includeLendBorrow });
+        if (data.useGlobalBudget !== undefined) set({ useGlobalBudget: data.useGlobalBudget });
+        if (data.globalBudgetLimit !== undefined) set({ globalBudgetLimit: data.globalBudgetLimit });
+        if (data.budgetCycle !== undefined) set({ budgetCycle: data.budgetCycle });
+        // If data exists but hasCompletedOnboarding is missing (legacy user), assume true.
+        if (data.hasCompletedOnboarding !== undefined) {
+          set({ hasCompletedOnboarding: data.hasCompletedOnboarding });
+        } else {
+          set({ hasCompletedOnboarding: true });
+        }
       } else {
-        // Create initial document
+        // Create initial document for brand new user
+        set({ hasCompletedOnboarding: false });
         setDoc(userDocRef, {
           budgets: get().budgets,
           theme: get().theme,
-          includeLendBorrow: get().includeLendBorrow
+          includeLendBorrow: get().includeLendBorrow,
+          useGlobalBudget: get().useGlobalBudget,
+          globalBudgetLimit: get().globalBudgetLimit,
+          budgetCycle: get().budgetCycle,
+          hasCompletedOnboarding: false
         });
       }
     });
@@ -45,24 +101,58 @@ export const useFinanceStore = create((set, get) => ({
     // Sync Transactions
     const txQuery = query(collection(db, 'users', uid, 'transactions'), orderBy('date', 'desc'));
     const unsubTx = onSnapshot(txQuery, (snapshot) => {
-      const txs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const txs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => typeof t.date === 'string');
       set({ transactions: txs });
       
       // Recalculate budgets spent on the fly
+      const cycle = get().budgetCycle;
+      const now = new Date();
+      
       const newBudgets = JSON.parse(JSON.stringify(get().budgets));
       Object.keys(newBudgets).forEach(k => newBudgets[k].spent = 0);
+      
       txs.forEach(t => {
         if (t.type === 'Expense' && newBudgets[t.category]) {
-          newBudgets[t.category].spent += Number(t.amount);
+          const tDate = parseISO(t.date);
+          let include = true;
+          
+          if (cycle === '1 month') {
+            include = tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+          } else if (cycle === '2 months') {
+            const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            include = tDate >= twoMonthsAgo;
+          } else if (cycle === '1 year') {
+            include = tDate.getFullYear() === now.getFullYear();
+          }
+          
+          if (include) {
+            newBudgets[t.category].spent += Number(t.amount);
+          }
         }
       });
       set({ budgets: newBudgets });
     });
 
     return () => {
-      unsubUser();
-      unsubTx();
-      set({ isInitialized: false, transactions: [] });
+      if (unsubUser) unsubUser();
+      if (unsubTx) unsubTx();
+      set({ 
+        isInitialized: false, 
+        transactions: [],
+        budgets: {
+          'Food & Dining': { limit: 5000, spent: 0 },
+          'Transport': { limit: 2000, spent: 0 },
+          'Shopping': { limit: 4000, spent: 0 },
+          'Entertainment': { limit: 3000, spent: 0 },
+          'Rent & Utilities': { limit: 15000, spent: 0 },
+        },
+        useGlobalBudget: false,
+        globalBudgetLimit: 50000,
+        budgetCycle: '1 month',
+        theme: 'dark',
+        includeLendBorrow: false,
+        hasCompletedOnboarding: true
+      });
     };
   },
   

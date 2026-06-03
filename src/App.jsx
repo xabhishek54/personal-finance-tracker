@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ReceiptText, PieChart, Plus, Settings, Wallet, LogOut } from 'lucide-react';
 import { useFinanceStore } from './store/useFinanceStore';
 import { auth } from './firebase';
@@ -10,6 +10,7 @@ import BudgetAnalytics from './components/BudgetAnalytics';
 import DebtsTracker from './components/DebtsTracker';
 import SettingsPage from './components/SettingsPage';
 import AddTransactionModal from './components/AddTransactionModal';
+import OnboardingModal from './components/OnboardingModal';
 import Login from './components/Auth/Login';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -19,8 +20,47 @@ function PrivateRoute({ children }) {
   return currentUser ? children : <Navigate to="/login" />;
 }
 
+// Auth synchronization component wrapper to access AuthContext
+const SyncWrapper = ({ children }) => {
+  const { currentUser } = useAuth();
+  const initializeUserSync = useFinanceStore(state => state.initializeUserSync);
+  const { hasCompletedOnboarding, completeOnboarding } = useFinanceStore();
+  
+  useEffect(() => {
+    if (currentUser) {
+      const cleanup = initializeUserSync(currentUser.uid);
+      return () => {
+        if (cleanup) cleanup();
+      };
+    }
+  }, [currentUser, initializeUserSync]);
+  
+  return (
+    <>
+      {children}
+      {currentUser && <OnboardingModal isOpen={!hasCompletedOnboarding} onClose={completeOnboarding} />}
+    </>
+  );
+};
+
+const PageTitleUpdater = () => {
+  const location = useLocation();
+  useEffect(() => {
+    const titles = {
+      '/': 'Dashboard | Finance Tracker',
+      '/logs': 'Transactions | Finance Tracker',
+      '/budgets': 'Analytics | Finance Tracker',
+      '/debts': 'Debts | Finance Tracker',
+      '/settings': 'Settings | Finance Tracker',
+      '/login': 'Login | Finance Tracker'
+    };
+    document.title = titles[location.pathname] || 'Finance Tracker';
+  }, [location.pathname]);
+  return null;
+};
+
 export default function App() {
-  const theme = useFinanceStore((state) => state.theme);
+  const { theme } = useFinanceStore();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
@@ -30,23 +70,6 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
-
-  // Auth synchronization component wrapper to access AuthContext
-  const SyncWrapper = ({ children }) => {
-    const { currentUser } = useAuth();
-    const initializeUserSync = useFinanceStore(state => state.initializeUserSync);
-    
-    useEffect(() => {
-      if (currentUser) {
-        const cleanup = initializeUserSync(currentUser.uid);
-        return () => {
-          if (cleanup) cleanup();
-        };
-      }
-    }, [currentUser, initializeUserSync]);
-    
-    return children;
-  };
 
   const navItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -60,6 +83,7 @@ export default function App() {
     <AuthProvider>
       <SyncWrapper>
         <Router>
+          <PageTitleUpdater />
           <Routes>
             <Route path="/login" element={<Login />} />
           <Route path="/*" element={
@@ -100,7 +124,7 @@ export default function App() {
                 </aside>
 
                 {/* Main Content Area */}
-                <main className="flex-1 overflow-y-auto pb-20 lg:pb-0 page-enter relative">
+                <main className="flex-1 overflow-y-auto pb-28 lg:pb-0 page-enter relative">
                   <div className="max-w-5xl mx-auto p-4 md:p-6 lg:p-8 min-h-full">
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
@@ -113,7 +137,7 @@ export default function App() {
                 </main>
 
                 {/* Mobile Bottom Navigation Bar */}
-                <nav className="lg:hidden absolute bottom-0 left-0 right-0 h-16 glass-nav flex items-center justify-around px-4 z-20 pb-safe">
+                <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 w-full glass-nav flex items-center justify-around px-4 z-50 pb-safe">
                   {navItems.map((item) => (
                     <NavLink
                       key={item.id}

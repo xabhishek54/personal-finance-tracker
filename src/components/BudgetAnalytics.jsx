@@ -1,22 +1,66 @@
 import { useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Settings, Sparkles } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
+import { Settings, Sparkles, BarChart2, PieChart as PieChartIcon } from 'lucide-react';
 import { subMonths, format, parseISO } from 'date-fns';
-import BudgetSettingsModal from './BudgetSettingsModal';
 
 export default function BudgetAnalytics() {
-  const { budgets, transactions, getSmartInsights } = useFinanceStore();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { budgets, transactions, getSmartInsights, useGlobalBudget, globalBudgetLimit, budgetCycle } = useFinanceStore();
+  const [chartType, setChartType] = useState('pie');
 
-  const pieData = Object.entries(budgets).map(([name, b]) => ({
-    name,
-    value: b.spent,
-    limit: b.limit,
-    percentage: Math.min((b.spent / (b.limit || 1)) * 100, 100)
-  })).filter(d => d.value > 0);
+  const now = new Date();
+  
+  // Filter for current cycle
+  const cycleTxs = transactions.filter(t => {
+    const tDate = parseISO(t.date);
+    if (budgetCycle === '1 month') {
+      return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+    } else if (budgetCycle === '2 months') {
+      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return tDate >= twoMonthsAgo;
+    } else if (budgetCycle === '1 year') {
+      return tDate.getFullYear() === now.getFullYear();
+    }
+    return true; // 'never'
+  });
 
-  const COLORS = ['#7C3AED', '#F59E0B', '#10B981', '#3B82F6', '#EC4899'];
+  const totalSpent = cycleTxs.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+  
+  let pieData = [];
+  if (useGlobalBudget) {
+    const remaining = Math.max(globalBudgetLimit - totalSpent, 0);
+    pieData = [
+      { name: 'Spent', value: totalSpent },
+      { name: 'Remaining', value: remaining }
+    ].filter(d => d.value > 0);
+  } else {
+    pieData = Object.entries(budgets || {}).map(([name, b]) => ({
+      name,
+      value: b.spent,
+      limit: b.limit,
+      percentage: Math.min((b.spent / (b.limit || 1)) * 100, 100)
+    })).filter(d => d.value > 0);
+  }
+
+  const COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#3B82F6', '#EC4899'];
+
+  // Stats Calculations
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const currentDay = now.getDate();
+  const avgSpentPerDay = currentDay > 0 ? totalSpent / currentDay : 0;
+  
+  const todayStr = format(now, 'yyyy-MM-dd');
+  const yesterdayStr = format(subMonths(now, 0).setDate(now.getDate() - 1), 'yyyy-MM-dd'); // safe yesterday
+  
+  const todaySpent = cycleTxs
+    .filter(t => t.type === 'Expense' && t.date.startsWith(todayStr))
+    .reduce((sum, t) => sum + t.amount, 0);
+    
+  const yesterdaySpent = transactions // don't restrict yesterday to cycle just in case it crosses a boundary
+    .filter(t => t.type === 'Expense' && t.date.startsWith(yesterdayStr))
+    .reduce((sum, t) => sum + t.amount, 0);
+    
+  const diffYesterday = todaySpent - yesterdaySpent;
 
   // Generate 6-month trend data
   const trendData = Array.from({ length: 6 }).map((_, i) => {
@@ -43,13 +87,36 @@ export default function BudgetAnalytics() {
           <h1 className="text-2xl font-bold">Budgets & Analytics</h1>
           <p className="text-[var(--text-muted)] text-sm">Deep dive into your finances.</p>
         </div>
-        <button 
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-2 rounded-xl bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white transition-colors"
-        >
-          <Settings size={20} />
-        </button>
+        <div className="flex bg-[var(--bg-surface-lit)] p-1 rounded-xl">
+          <button 
+            onClick={() => setChartType('pie')}
+            className={`p-2 rounded-lg transition-colors ${chartType === 'pie' ? 'bg-[var(--bg-surface)] text-[var(--accent-violet)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+          >
+            <PieChartIcon size={20} />
+          </button>
+          <button 
+            onClick={() => setChartType('bar')}
+            className={`p-2 rounded-lg transition-colors ${chartType === 'bar' ? 'bg-[var(--bg-surface)] text-[var(--accent-violet)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+          >
+            <BarChart2 size={20} />
+          </button>
+        </div>
       </header>
+
+      {/* Mini Stats Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="surface-card p-4 flex flex-col gap-1">
+          <span className="text-xs font-medium text-[var(--text-muted)]">Avg Spent / Day</span>
+          <span className="text-lg font-bold tabular-nums">₹{Math.round(avgSpentPerDay).toLocaleString()}</span>
+        </div>
+        <div className="surface-card p-4 flex flex-col gap-1">
+          <span className="text-xs font-medium text-[var(--text-muted)]">Spent Today</span>
+          <span className="text-lg font-bold tabular-nums">₹{todaySpent.toLocaleString()}</span>
+          <span className={`text-[10px] font-medium ${diffYesterday > 0 ? 'text-[var(--status-red)]' : 'text-[var(--status-green)]'}`}>
+            {diffYesterday > 0 ? '+' : ''}₹{diffYesterday.toLocaleString()} vs yesterday
+          </span>
+        </div>
+      </div>
 
       {/* AI Smart Insights Card */}
       <div className="bg-gradient-to-br from-[var(--status-green)]/10 to-transparent border border-[var(--status-green)]/20 rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden">
@@ -74,33 +141,60 @@ export default function BudgetAnalytics() {
           <h2 className="text-sm font-semibold self-start mb-4">Spending Distribution</h2>
           <div className="w-full h-64 max-w-sm">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'var(--bg-surface-lit)',
-                    borderColor: 'var(--bg-surface-lit)',
-                    borderRadius: '8px',
-                    color: 'var(--text-main)',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                  itemStyle={{ color: 'var(--text-main)' }}
-                  formatter={(value) => `₹${value.toLocaleString()}`}
-                />
-              </PieChart>
+              {chartType === 'pie' ? (
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationEasing="ease-out"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'var(--bg-surface-lit)',
+                      borderColor: 'var(--bg-surface-lit)',
+                      borderRadius: '8px',
+                      color: 'var(--text-main)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    itemStyle={{ color: 'var(--text-main)' }}
+                    formatter={(value) => `₹${value.toLocaleString()}`}
+                  />
+                </PieChart>
+              ) : (
+                <BarChart data={pieData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-surface-lit)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} tick={{fill: 'var(--text-muted)'}} />
+                  <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'var(--bg-surface-lit)',
+                      borderColor: 'var(--bg-surface-lit)',
+                      borderRadius: '8px',
+                      color: 'var(--text-main)',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                    formatter={(value) => `₹${value.toLocaleString()}`}
+                    cursor={{fill: 'var(--accent-glow)'}}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={true} animationDuration={1500} animationEasing="ease-out">
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </div>
         </div>
@@ -122,8 +216,8 @@ export default function BudgetAnalytics() {
                     color: 'var(--text-main)',
                   }}
                 />
-                <Line type="monotone" dataKey="income" stroke="var(--status-green)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="expense" stroke="var(--status-red)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="income" stroke="var(--status-green)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={true} animationDuration={1500} />
+                <Line type="monotone" dataKey="expense" stroke="var(--status-red)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={true} animationDuration={1500} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -138,7 +232,7 @@ export default function BudgetAnalytics() {
       <div className="flex flex-col gap-4 mt-4">
         <h2 className="text-lg font-semibold">Monthly Allowances</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.entries(budgets).map(([category, { limit, spent }]) => {
+          {Object.entries(budgets || {}).map(([category, { limit, spent }]) => {
             if (limit === 0 && spent === 0) return null;
             
             const percentage = Math.min((spent / (limit || 1)) * 100, 100);
@@ -155,7 +249,7 @@ export default function BudgetAnalytics() {
                 </div>
                 <div className="h-2 w-full bg-[var(--bg-surface-lit)] rounded-full overflow-hidden">
                   <div 
-                    className={`h-full rounded-full transition-all duration-500 ease-out ${
+                    className={`h-full rounded-full transition-all duration-1000 ease-out ${
                       isDanger ? 'bg-[var(--status-red)]' : 
                       isWarning ? 'bg-[var(--status-yellow)]' : 
                       'bg-[var(--accent-violet)]'
@@ -169,8 +263,6 @@ export default function BudgetAnalytics() {
           })}
         </div>
       </div>
-
-      <BudgetSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 }

@@ -2,13 +2,13 @@
 
 @layer base {
   :root {
-    --bg-space: #F8FAFC;
+    --bg-space: #FAFAF9;
     --bg-surface: #FFFFFF;
-    --bg-surface-lit: #F1F5F9;
+    --bg-surface-lit: #F4F4F5;
     --accent-violet: #6366F1;
     --accent-glow: rgba(99, 102, 241, 0.15);
-    --text-main: #0F172A;
-    --text-muted: #64748B;
+    --text-main: #18181B;
+    --text-muted: #71717A;
     --status-green: #10B981;
     --status-yellow: #F59E0B;
     --status-red: #EF4444;

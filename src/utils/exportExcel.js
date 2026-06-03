@@ -7,10 +7,11 @@ export function exportTransactionsToExcel(transactions, budgets) {
     Date: format(parseISO(tx.date), 'yyyy-MM-dd'),
     Category: tx.category,
     Recipient: tx.recipient,
-    Amount: tx.amount,
+    Amount: (tx.type === 'Income' || tx.type === 'Borrow') ? `+ ₹${tx.amount}` : `- ₹${tx.amount}`,
+    Impact: (tx.type === 'Income' || tx.type === 'Borrow') ? 'Addition' : 'Subtraction',
     Type: tx.type,
     'Payment Method': tx.method,
-    Note: tx.note || ''
+    'Reason/Note': tx.note || ''
   }));
   const wsAll = XLSX.utils.json_to_sheet(txData);
 
