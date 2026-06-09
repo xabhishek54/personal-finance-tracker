@@ -18,7 +18,7 @@ export default function SecurityAuthModal({ isOpen, onClose, onSuccess, title, m
       setError('Please enter your password.');
       return;
     }
-    
+
     setIsVerifying(true);
     try {
       const credential = EmailAuthProvider.credential(currentUser.email, password);
@@ -35,21 +35,23 @@ export default function SecurityAuthModal({ isOpen, onClose, onSuccess, title, m
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[popIn_200ms_ease-out]">
       <div className="w-full max-w-md bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        
         <header className="flex justify-between items-center p-4 border-b border-[var(--bg-surface-lit)]">
           <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--status-red)]">
             <Lock size={20} /> Security Check
           </h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] transition-colors">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] transition-colors"
+          >
             <X size={20} />
           </button>
         </header>
 
         <div className="p-6 flex flex-col gap-6">
           <div className="text-center">
-            <h3 className="text-xl font-bold mb-2">{title || "Verify Identity"}</h3>
+            <h3 className="text-xl font-bold mb-2">{title || 'Verify Identity'}</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              {message || "Please verify your password to continue."}
+              {message || 'Please verify your password to continue.'}
             </p>
           </div>
 
@@ -70,7 +72,7 @@ export default function SecurityAuthModal({ isOpen, onClose, onSuccess, title, m
             {error && <p className="text-xs text-[var(--status-red)]">{error}</p>}
           </div>
 
-          <button 
+          <button
             onClick={handleVerify}
             disabled={isVerifying}
             className="w-full py-3.5 mt-2 rounded-xl bg-[var(--status-red)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--status-red)]/20 active:scale-[0.98] transition-transform disabled:opacity-50"

@@ -6,9 +6,17 @@ import SecurityAuthModal from './SecurityAuthModal';
 import ChangePasswordModal from './ChangePasswordModal';
 
 export default function SettingsPage() {
-  const { updateBudget, setIncludeLendBorrow, setGlobalBudgetOptions, setBudgetCycle, requirePasswordForDelete, setRequirePasswordForDelete } = useFinanceStore();
-  const { budgets, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle } = useWorkspaceSettings();
-  
+  const {
+    updateBudget,
+    setIncludeLendBorrow,
+    setGlobalBudgetOptions,
+    setBudgetCycle,
+    requirePasswordForDelete,
+    setRequirePasswordForDelete,
+  } = useFinanceStore();
+  const { budgets, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle } =
+    useWorkspaceSettings();
+
   const [localBudgets, setLocalBudgets] = useState(
     Object.keys(budgets).reduce((acc, cat) => {
       acc[cat] = budgets[cat].limit;
@@ -50,30 +58,32 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Settings2 size={24} /> Settings
         </h1>
-        <p className="text-[var(--text-muted)] text-sm">Configure your app preferences and budgets.</p>
+        <p className="text-[var(--text-muted)] text-sm">
+          Configure your app preferences and budgets.
+        </p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
         {/* App Preferences */}
         <div className="surface-card p-6 flex flex-col gap-6 h-fit">
           <div className="flex items-center gap-2 border-b border-[var(--bg-surface-lit)] pb-4">
             <SlidersHorizontal size={20} className="text-[var(--accent-violet)]" />
             <h2 className="text-lg font-semibold">General Preferences</h2>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex flex-col max-w-[70%]">
               <span className="font-medium">Include Lend/Borrow in Totals</span>
               <span className="text-xs text-[var(--text-muted)] mt-1">
-                If enabled, money lent will be treated as an Expense, and money borrowed as Income in the Dashboard totals.
+                If enabled, money lent will be treated as an Expense, and money borrowed as Income
+                in the Dashboard totals.
               </span>
             </div>
-            
+
             <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="sr-only peer" 
+              <input
+                type="checkbox"
+                className="sr-only peer"
                 checked={includeLendBorrow}
                 onChange={(e) => setIncludeLendBorrow(e.target.checked)}
               />
@@ -105,7 +115,7 @@ export default function SettingsPage() {
         <div className="surface-card p-6 flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-[var(--bg-surface-lit)] pb-4">
             <h2 className="text-lg font-semibold">Monthly Allowances</h2>
-            <button 
+            <button
               onClick={handleSaveBudgets}
               className="px-4 py-2 text-sm font-bold bg-[var(--accent-violet)] text-white rounded-xl shadow-lg shadow-[var(--accent-glow)] flex items-center gap-2 transition-transform active:scale-95"
             >
@@ -113,14 +123,16 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          <p className="text-xs text-[var(--text-muted)]">Set the maximum amount you want to spend per category each month.</p>
-          
+          <p className="text-xs text-[var(--text-muted)]">
+            Set the maximum amount you want to spend per category each month.
+          </p>
+
           <div className="flex items-center justify-between mt-2 p-3 bg-[var(--bg-surface-lit)] rounded-xl">
             <span className="text-sm font-medium">Use Global Budget limit</span>
             <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="sr-only peer" 
+              <input
+                type="checkbox"
+                className="sr-only peer"
                 checked={localUseGlobal}
                 onChange={(e) => setLocalUseGlobal(e.target.checked)}
               />
@@ -131,11 +143,13 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-3 mt-2">
             {localUseGlobal ? (
               <div className="flex flex-col gap-1.5 animate-[slideUp_150ms_ease-out]">
-                <label className="text-sm font-medium text-[var(--text-main)]">Total Monthly Budget</label>
+                <label className="text-sm font-medium text-[var(--text-main)]">
+                  Total Monthly Budget
+                </label>
                 <div className="flex items-center bg-[var(--bg-surface-lit)] rounded-xl px-4 py-2.5 border border-transparent focus-within:border-[var(--accent-violet)] transition-colors">
                   <span className="text-[var(--text-muted)] mr-2 font-bold">₹</span>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={localGlobalLimit}
                     onChange={(e) => setLocalGlobalLimit(e.target.value)}
                     className="bg-transparent w-full focus:outline-none text-sm tabular-nums font-bold"
@@ -143,17 +157,25 @@ export default function SettingsPage() {
                 </div>
               </div>
             ) : (
-              Object.keys(budgets).map(category => (
-                <div key={category} className="flex flex-col gap-1.5 animate-[slideUp_150ms_ease-out]">
+              Object.keys(budgets).map((category) => (
+                <div
+                  key={category}
+                  className="flex flex-col gap-1.5 animate-[slideUp_150ms_ease-out]"
+                >
                   <label className="text-sm font-medium text-[var(--text-main)]">
-                    {category} <span className="text-[10px] text-[var(--text-muted)] font-normal ml-1">(Optional)</span>
+                    {category}{' '}
+                    <span className="text-[10px] text-[var(--text-muted)] font-normal ml-1">
+                      (Optional)
+                    </span>
                   </label>
                   <div className="flex items-center bg-[var(--bg-surface-lit)] rounded-xl px-4 py-2.5 border border-transparent focus-within:border-[var(--accent-violet)] transition-colors">
                     <span className="text-[var(--text-muted)] mr-2 font-bold">₹</span>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={localBudgets[category] || ''}
-                      onChange={(e) => setLocalBudgets({ ...localBudgets, [category]: e.target.value })}
+                      onChange={(e) =>
+                        setLocalBudgets({ ...localBudgets, [category]: e.target.value })
+                      }
                       placeholder="0"
                       className="bg-transparent w-full focus:outline-none text-sm tabular-nums font-bold"
                     />
@@ -167,7 +189,9 @@ export default function SettingsPage() {
         {/* Security & Danger Zone */}
         <div className="surface-card p-6 flex flex-col gap-4 lg:col-span-2 border border-[var(--status-red)]/20 bg-gradient-to-br from-[var(--status-red)]/5 to-transparent">
           <div className="flex items-center gap-2 border-b border-[var(--status-red)]/10 pb-4">
-            <h2 className="text-lg font-semibold text-[var(--status-red)]">Security & Danger Zone</h2>
+            <h2 className="text-lg font-semibold text-[var(--status-red)]">
+              Security & Danger Zone
+            </h2>
           </div>
 
           {/* Change Password */}
@@ -178,7 +202,7 @@ export default function SettingsPage() {
                 Update your account password securely.
               </span>
             </div>
-            <button 
+            <button
               onClick={() => setIsPasswordModalOpen(true)}
               className="px-4 py-2 text-sm font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors whitespace-nowrap shrink-0"
             >
@@ -193,11 +217,11 @@ export default function SettingsPage() {
                 If enabled, deleting any transaction will prompt for your password.
               </span>
             </div>
-            
+
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input 
-                type="checkbox" 
-                className="sr-only peer" 
+              <input
+                type="checkbox"
+                className="sr-only peer"
                 checked={requirePasswordForDelete}
                 onChange={(e) => handleSecurityToggle(e.target.checked)}
               />
@@ -209,10 +233,11 @@ export default function SettingsPage() {
             <div className="flex flex-col">
               <span className="font-medium">Clear Transaction Data</span>
               <span className="text-xs text-[var(--text-muted)] mt-1">
-                Permanently delete all or some of your transactions. This requires password verification.
+                Permanently delete all or some of your transactions. This requires password
+                verification.
               </span>
             </div>
-            <button 
+            <button
               onClick={() => setIsClearModalOpen(true)}
               className="px-4 py-2 text-sm font-bold bg-[var(--status-red)]/10 text-[var(--status-red)] hover:bg-[var(--status-red)] hover:text-white rounded-xl transition-colors whitespace-nowrap shrink-0"
             >
@@ -220,14 +245,16 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-
       </div>
 
       <ClearDataModal isOpen={isClearModalOpen} onClose={() => setIsClearModalOpen(false)} />
-      <ChangePasswordModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} />
-      <SecurityAuthModal 
-        isOpen={showDisableSecurityAuth} 
-        onClose={() => setShowDisableSecurityAuth(false)} 
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
+      <SecurityAuthModal
+        isOpen={showDisableSecurityAuth}
+        onClose={() => setShowDisableSecurityAuth(false)}
         onSuccess={() => setRequirePasswordForDelete(false)}
         title="Disable Security Feature"
         message="Please enter your password to disable transaction deletion security."

@@ -37,7 +37,7 @@ export default function ClearDataModal({ isOpen, onClose }) {
       setError('Please enter your password.');
       return;
     }
-    
+
     try {
       const credential = EmailAuthProvider.credential(currentUser.email, password);
       await reauthenticateWithCredential(currentUser, credential);
@@ -60,15 +60,19 @@ export default function ClearDataModal({ isOpen, onClose }) {
         txsToDelete = snapshot.docs;
       } else if (clearType === '24h') {
         const cutoff = subHours(now, 24);
-        txsToDelete = transactions.filter(t => parseISO(t.date) >= cutoff).map(t => ({ id: t.id }));
+        txsToDelete = transactions
+          .filter((t) => parseISO(t.date) >= cutoff)
+          .map((t) => ({ id: t.id }));
       } else if (clearType === 'month') {
         const cutoff = subMonths(now, 1);
-        txsToDelete = transactions.filter(t => parseISO(t.date) >= cutoff).map(t => ({ id: t.id }));
+        txsToDelete = transactions
+          .filter((t) => parseISO(t.date) >= cutoff)
+          .map((t) => ({ id: t.id }));
       }
 
       // Batch delete
       const batch = writeBatch(db);
-      txsToDelete.forEach(tx => {
+      txsToDelete.forEach((tx) => {
         batch.delete(doc(db, 'users', currentUser.uid, 'transactions', tx.id));
       });
       await batch.commit();
@@ -85,12 +89,14 @@ export default function ClearDataModal({ isOpen, onClose }) {
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[popIn_200ms_ease-out]">
       <div className="w-full max-w-md bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        
         <header className="flex justify-between items-center p-4 border-b border-[var(--bg-surface-lit)]">
           <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--status-red)]">
             <AlertTriangle size={20} /> Danger Zone
           </h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] transition-colors">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] transition-colors"
+          >
             <X size={20} />
           </button>
         </header>
@@ -103,16 +109,21 @@ export default function ClearDataModal({ isOpen, onClose }) {
               </div>
               <h3 className="text-xl font-bold">Offline Mode</h3>
               <p className="text-sm text-[var(--text-muted)]">
-                You cannot delete data while offline to prevent synchronization conflicts. Please connect to the internet.
+                You cannot delete data while offline to prevent synchronization conflicts. Please
+                connect to the internet.
               </p>
-              <button onClick={onClose} className="w-full py-3.5 mt-4 rounded-xl bg-[var(--bg-surface-lit)] font-bold active:scale-[0.98]">
+              <button
+                onClick={onClose}
+                className="w-full py-3.5 mt-4 rounded-xl bg-[var(--bg-surface-lit)] font-bold active:scale-[0.98]"
+              >
                 Close
               </button>
             </div>
           ) : step === 1 ? (
             <>
               <p className="text-sm text-[var(--text-muted)]">
-                You are about to permanently delete your transaction data. Please select what you want to delete and verify your password to continue.
+                You are about to permanently delete your transaction data. Please select what you
+                want to delete and verify your password to continue.
               </p>
 
               <div className="flex flex-col gap-3">
@@ -121,15 +132,15 @@ export default function ClearDataModal({ isOpen, onClose }) {
                   {[
                     { id: '24h', label: 'Previous 24 Hours' },
                     { id: 'month', label: 'Previous 1 Month' },
-                    { id: 'all', label: 'All Transactions' }
-                  ].map(opt => (
+                    { id: 'all', label: 'All Transactions' },
+                  ].map((opt) => (
                     <button
                       key={opt.id}
                       type="button"
                       onClick={() => setClearType(opt.id)}
                       className={`w-full p-3.5 rounded-xl border text-left font-medium transition-all ${
-                        clearType === opt.id 
-                          ? 'bg-[var(--status-red)]/10 border-[var(--status-red)] text-[var(--status-red)]' 
+                        clearType === opt.id
+                          ? 'bg-[var(--status-red)]/10 border-[var(--status-red)] text-[var(--status-red)]'
                           : 'bg-[var(--bg-surface-lit)] border-transparent text-[var(--text-main)] hover:border-[var(--text-muted)]'
                       }`}
                     >
@@ -156,7 +167,7 @@ export default function ClearDataModal({ isOpen, onClose }) {
                 {error && <p className="text-xs text-[var(--status-red)]">{error}</p>}
               </div>
 
-              <button 
+              <button
                 onClick={handleReauthenticate}
                 className="w-full py-3.5 mt-2 rounded-xl bg-[var(--status-red)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--status-red)]/20 active:scale-[0.98] transition-transform"
               >
@@ -171,18 +182,19 @@ export default function ClearDataModal({ isOpen, onClose }) {
                 </div>
                 <h3 className="text-xl font-bold">Are you absolutely sure?</h3>
                 <p className="text-sm text-[var(--text-muted)]">
-                  This action cannot be undone. All selected transactions will be permanently deleted from our servers.
+                  This action cannot be undone. All selected transactions will be permanently
+                  deleted from our servers.
                 </p>
               </div>
-              
+
               <div className="flex gap-3 mt-4">
-                <button 
+                <button
                   onClick={onClose}
                   className="flex-1 py-3.5 rounded-xl bg-[var(--bg-surface-lit)] font-bold active:scale-[0.98] transition-transform"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleClearData}
                   disabled={isDeleting}
                   className="flex-1 py-3.5 rounded-xl bg-[var(--status-red)] text-white font-bold flex justify-center items-center shadow-lg shadow-[var(--status-red)]/20 active:scale-[0.98] transition-transform disabled:opacity-50"
@@ -192,7 +204,6 @@ export default function ClearDataModal({ isOpen, onClose }) {
               </div>
             </>
           )}
-
         </div>
       </div>
     </div>,

@@ -7,16 +7,16 @@ export default function CountUp({ value, duration = 500, formatter = (v) => v, c
     let startTimestamp = null;
     const startValue = displayValue;
     const endValue = value;
-    
+
     if (startValue === endValue) return;
 
     const step = (timestamp) => {
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      
+
       // easeOutQuart for a smoother, richer deceleration
       const easeProgress = 1 - Math.pow(1 - progress, 4);
-      
+
       setDisplayValue(startValue + (endValue - startValue) * easeProgress);
 
       if (progress < 1) {

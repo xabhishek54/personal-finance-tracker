@@ -12,7 +12,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(() => !localStorage.getItem('finance_user'));
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         localStorage.setItem('finance_user', JSON.stringify({ uid: user.uid, email: user.email }));
       } else {
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
       setCurrentUser(user);
       setLoading(false);
     });
-    
+
     return unsubscribe;
   }, []);
 

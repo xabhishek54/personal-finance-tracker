@@ -177,16 +177,16 @@ The app will generate simple text insights such as:
 
 ## 8. Tech Stack Suggestion
 
-| Layer | Recommended Option |
-|---|---|
-| Frontend | React Native (mobile) or React.js (web) |
-| Charts | Recharts / Victory Native |
-| Excel Export | SheetJS (xlsx) |
-| Local Storage | AsyncStorage / SQLite |
-| Cloud Backup | Google Drive API |
-| Gmail/GPay Parsing | Gmail API (OAuth 2.0) |
-| SMS Parsing | Android SMS Permissions (React Native) |
+| Layer              | Recommended Option                      |
+| ------------------ | --------------------------------------- |
+| Frontend           | React Native (mobile) or React.js (web) |
+| Charts             | Recharts / Victory Native               |
+| Excel Export       | SheetJS (xlsx)                          |
+| Local Storage      | AsyncStorage / SQLite                   |
+| Cloud Backup       | Google Drive API                        |
+| Gmail/GPay Parsing | Gmail API (OAuth 2.0)                   |
+| SMS Parsing        | Android SMS Permissions (React Native)  |
 
 ---
 
-*Document Version: 1.0 — Created June 2026*
+_Document Version: 1.0 — Created June 2026_

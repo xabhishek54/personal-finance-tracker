@@ -1,5 +1,20 @@
-import { useFinanceStore, useFilteredTransactions, useWorkspaceSettings } from '../store/useFinanceStore';
-import { Search, Filter, Wallet, Download, ChevronDown, Edit3, Trash2, CheckSquare, Square, FolderInput } from 'lucide-react';
+import {
+  useFinanceStore,
+  useFilteredTransactions,
+  useWorkspaceSettings,
+} from '../store/useFinanceStore';
+import {
+  Search,
+  Filter,
+  Wallet,
+  Download,
+  ChevronDown,
+  Edit3,
+  Trash2,
+  CheckSquare,
+  Square,
+  FolderInput,
+} from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { exportTransactionsToExcel } from '../utils/exportExcel';
 import { isWithinInterval, parseISO } from 'date-fns';
@@ -10,20 +25,20 @@ import ConfirmModal from './ConfirmModal';
 export default function TransactionLog() {
   const transactions = useFilteredTransactions();
   const { budgets } = useWorkspaceSettings();
-  const deleteTransaction = useFinanceStore(state => state.deleteTransaction);
-  const getUniqueMerchants = useFinanceStore(state => state.getUniqueMerchants);
-  const requirePasswordForDelete = useFinanceStore(state => state.requirePasswordForDelete);
-  const isDeleteModeUnlocked = useFinanceStore(state => state.isDeleteModeUnlocked);
-  const workspaces = useFinanceStore(state => state.workspaces);
-  const activeWorkspaceId = useFinanceStore(state => state.activeWorkspaceId);
-  const moveTransactionsToWorkspace = useFinanceStore(state => state.moveTransactionsToWorkspace);
-  
+  const deleteTransaction = useFinanceStore((state) => state.deleteTransaction);
+  const getUniqueMerchants = useFinanceStore((state) => state.getUniqueMerchants);
+  const requirePasswordForDelete = useFinanceStore((state) => state.requirePasswordForDelete);
+  const isDeleteModeUnlocked = useFinanceStore((state) => state.isDeleteModeUnlocked);
+  const workspaces = useFinanceStore((state) => state.workspaces);
+  const activeWorkspaceId = useFinanceStore((state) => state.activeWorkspaceId);
+  const moveTransactionsToWorkspace = useFinanceStore((state) => state.moveTransactionsToWorkspace);
+
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   const [showFilter, setShowFilter] = useState(false);
   const filterRef = useRef(null);
   const [selectedTxIds, setSelectedTxIds] = useState(new Set());
-  
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterRef.current && !filterRef.current.contains(event.target)) {
@@ -33,29 +48,30 @@ export default function TransactionLog() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
+
   const [filterType, setFilterType] = useState('All');
   const [filterSource, setFilterSource] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [sortBy, setSortBy] = useState('Date (Newest)');
-  
+
   const [editingTx, setEditingTx] = useState(null);
   const [pendingDeleteTx, setPendingDeleteTx] = useState(null);
   const [confirmConfig, setConfirmConfig] = useState(null);
 
   const filteredTx = useMemo(() => {
-    let result = transactions.filter(tx => {
-      const matchesSearch = tx.recipient.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            tx.category.toLowerCase().includes(searchTerm.toLowerCase());
+    let result = transactions.filter((tx) => {
+      const matchesSearch =
+        tx.recipient.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tx.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === 'All' || tx.type === filterType;
       const matchesSource = filterSource === 'All' || tx.recipient === filterSource;
-      
+
       let matchesDate = true;
       if (startDate && endDate) {
-        matchesDate = isWithinInterval(parseISO(tx.date), { 
-          start: new Date(startDate), 
-          end: new Date(endDate) 
+        matchesDate = isWithinInterval(parseISO(tx.date), {
+          start: new Date(startDate),
+          end: new Date(endDate),
         });
       }
 
@@ -78,7 +94,7 @@ export default function TransactionLog() {
       setConfirmConfig({
         title: 'Delete Transaction?',
         description: 'Are you sure you want to delete this transaction?',
-        onConfirm: () => deleteTransaction(tx.id)
+        onConfirm: () => deleteTransaction(tx.id),
       });
     }
   };
@@ -102,9 +118,9 @@ export default function TransactionLog() {
         title: 'Delete Transactions?',
         description: `Are you sure you want to delete ${selectedTxIds.size} transactions?`,
         onConfirm: () => {
-          selectedTxIds.forEach(id => deleteTransaction(id));
+          selectedTxIds.forEach((id) => deleteTransaction(id));
           setSelectedTxIds(new Set());
-        }
+        },
       });
     }
   };
@@ -120,7 +136,7 @@ export default function TransactionLog() {
       onConfirm: () => {
         moveTransactionsToWorkspace(Array.from(selectedTxIds), newWorkspaceId);
         setSelectedTxIds(new Set());
-      }
+      },
     });
     e.target.value = '';
   };
@@ -130,7 +146,7 @@ export default function TransactionLog() {
       <header className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Transactions</h1>
-          <button 
+          <button
             onClick={() => exportTransactionsToExcel(filteredTx, budgets)}
             className="flex items-center gap-2 text-sm font-medium bg-[var(--status-green)]/10 text-[var(--status-green)] hover:bg-[var(--status-green)]/20 px-3 py-1.5 rounded-lg transition-colors"
           >
@@ -139,9 +155,12 @@ export default function TransactionLog() {
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={18} />
-            <input 
-              type="text" 
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+              size={18}
+            />
+            <input
+              type="text"
               placeholder="Search merchants, categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -149,22 +168,23 @@ export default function TransactionLog() {
             />
           </div>
           <div className="relative z-10" ref={filterRef}>
-            <button 
+            <button
               onClick={() => setShowFilter(!showFilter)}
               className={`surface-card px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm font-medium ${showFilter ? 'bg-[var(--bg-surface-lit)] text-[var(--text-main)]' : 'hover:bg-[var(--bg-surface-lit)]'}`}
             >
-              <Filter size={18} /> 
+              <Filter size={18} />
               <span className="hidden sm:inline">Filters</span>
               <ChevronDown size={14} />
             </button>
             {showFilter && (
               <div className="absolute top-full right-0 mt-2 w-72 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-xl p-4 flex flex-col gap-4 animate-[popIn_150ms_ease-out]">
-                
                 <div>
-                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 block">Sort By</label>
-                  <select 
-                    value={sortBy} 
-                    onChange={e => setSortBy(e.target.value)}
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 block">
+                    Sort By
+                  </label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
                     className="w-full bg-[var(--bg-surface-lit)] text-sm p-2 rounded-lg outline-none"
                   >
                     <option>Date (Newest)</option>
@@ -175,39 +195,62 @@ export default function TransactionLog() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 block">Type</label>
-                  <select 
-                    value={filterType} 
-                    onChange={e => setFilterType(e.target.value)}
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 block">
+                    Type
+                  </label>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
                     className="w-full bg-[var(--bg-surface-lit)] text-sm p-2 rounded-lg outline-none"
                   >
-                    {['All', 'Expense', 'Income', 'Lend', 'Borrow'].map(t => <option key={t}>{t}</option>)}
+                    {['All', 'Expense', 'Income', 'Lend', 'Borrow'].map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 block">Source / Merchant</label>
-                  <select 
-                    value={filterSource} 
-                    onChange={e => setFilterSource(e.target.value)}
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 block">
+                    Source / Merchant
+                  </label>
+                  <select
+                    value={filterSource}
+                    onChange={(e) => setFilterSource(e.target.value)}
                     className="w-full bg-[var(--bg-surface-lit)] text-sm p-2 rounded-lg outline-none"
                   >
                     <option value="All">All Sources</option>
-                    {getUniqueMerchants().map(m => <option key={m} value={m}>{m}</option>)}
+                    {getUniqueMerchants().map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">From</label>
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-[var(--bg-surface-lit)] text-xs p-2 rounded-lg outline-none" />
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">
+                      From
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full bg-[var(--bg-surface-lit)] text-xs p-2 rounded-lg outline-none"
+                    />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">To</label>
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-[var(--bg-surface-lit)] text-xs p-2 rounded-lg outline-none" />
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">
+                      To
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full bg-[var(--bg-surface-lit)] text-xs p-2 rounded-lg outline-none"
+                    />
                   </div>
                 </div>
-
               </div>
             )}
           </div>
@@ -217,24 +260,38 @@ export default function TransactionLog() {
       <div className="flex-1 overflow-y-auto min-h-[400px]">
         {selectedTxIds.size > 0 && (
           <div className="flex justify-between items-center bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] p-3 rounded-xl mb-4 animate-[popIn_150ms_ease-out]">
-            <span className="text-sm font-bold ml-2">{selectedTxIds.size} transaction{selectedTxIds.size > 1 ? 's' : ''} selected</span>
+            <span className="text-sm font-bold ml-2">
+              {selectedTxIds.size} transaction{selectedTxIds.size > 1 ? 's' : ''} selected
+            </span>
             <div className="flex gap-2">
               <div className="relative flex items-center">
-                <FolderInput size={16} className="absolute left-3 text-white z-10 pointer-events-none" />
-                <select 
+                <FolderInput
+                  size={16}
+                  className="absolute left-3 text-white z-10 pointer-events-none"
+                />
+                <select
                   onChange={handleMoveSelected}
                   defaultValue=""
                   className="appearance-none bg-[var(--accent-violet)] text-white text-sm font-bold pl-9 pr-8 py-2 rounded-lg cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-[var(--accent-glow)] outline-none border-none"
                 >
-                  <option value="" disabled>Move to Mode...</option>
-                  {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
+                  <option value="" disabled>
+                    Move to Mode...
+                  </option>
+                  {workspaces
+                    .filter((w) => w.id !== activeWorkspaceId)
+                    .map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
                 </select>
-                <ChevronDown size={14} className="absolute right-3 text-white pointer-events-none" />
+                <ChevronDown
+                  size={14}
+                  className="absolute right-3 text-white pointer-events-none"
+                />
               </div>
-              <button 
-                onClick={handleDeleteSelected} 
+              <button
+                onClick={handleDeleteSelected}
                 className="flex items-center gap-2 text-sm font-bold bg-[var(--status-red)] text-white px-4 py-2 rounded-lg active:scale-95 transition-transform shadow-lg shadow-[var(--status-red)]/20"
               >
                 <Trash2 size={16} /> <span className="hidden sm:inline">Delete</span>
@@ -243,82 +300,110 @@ export default function TransactionLog() {
           </div>
         )}
         <div className="surface-card divide-y divide-[var(--bg-surface-lit)]">
-          {filteredTx.length > 0 ? filteredTx.map((tx) => (
-            <div 
-              key={tx.id} 
-              onDoubleClick={() => setEditingTx(tx)}
-              onClick={(e) => handleToggleSelect(e, tx.id)}
-              className={`p-4 flex items-center justify-between hover:bg-[var(--bg-surface-lit)] transition-colors cursor-pointer group select-none ${selectedTxIds.has(tx.id) ? 'bg-[var(--accent-violet)]/5' : ''}`}
-              title="Click to select, double click to edit"
-            >
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={(e) => handleToggleSelect(e, tx.id)}
-                  className="text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors focus:outline-none flex items-center justify-center p-1"
-                >
-                  {selectedTxIds.has(tx.id) ? (
-                    <CheckSquare size={20} className="text-[var(--accent-violet)]" />
-                  ) : (
-                    <Square size={20} />
-                  )}
-                </button>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  tx.category === 'Food & Dining' ? 'bg-orange-500/10 text-orange-500' :
-                  tx.category === 'Transport' ? 'bg-blue-500/10 text-blue-500' :
-                  tx.category === 'Income' ? 'bg-[var(--status-green)]/10 text-[var(--status-green)]' :
-                  'bg-[var(--accent-violet)]/10 text-[var(--accent-violet)]'
-                }`}>
-                  <Wallet size={20} />
-                </div>
-                <div>
-                  <p className="font-medium text-[var(--text-main)] group-hover:text-[var(--accent-violet)] transition-colors">{tx.recipient}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{tx.category} • {tx.method}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-right">
-                <div className="flex flex-col items-end mr-2">
-                  <div className={`font-bold tabular-nums ${
-                    tx.type === 'Income' || tx.type === 'Borrow' ? 'text-[var(--status-green)]' : 
-                    tx.type === 'Lend' ? 'text-[var(--status-yellow)]' : 'text-[var(--text-main)]'
-                  }`}>
-                    {tx.type === 'Income' || tx.type === 'Borrow' ? '+' : ''}₹{tx.amount.toLocaleString()}
+          {filteredTx.length > 0 ? (
+            filteredTx.map((tx) => (
+              <div
+                key={tx.id}
+                onDoubleClick={() => setEditingTx(tx)}
+                onClick={(e) => handleToggleSelect(e, tx.id)}
+                className={`p-4 flex items-center justify-between hover:bg-[var(--bg-surface-lit)] transition-colors cursor-pointer group select-none ${selectedTxIds.has(tx.id) ? 'bg-[var(--accent-violet)]/5' : ''}`}
+                title="Click to select, double click to edit"
+              >
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={(e) => handleToggleSelect(e, tx.id)}
+                    className="text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors focus:outline-none flex items-center justify-center p-1"
+                  >
+                    {selectedTxIds.has(tx.id) ? (
+                      <CheckSquare size={20} className="text-[var(--accent-violet)]" />
+                    ) : (
+                      <Square size={20} />
+                    )}
+                  </button>
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      tx.category === 'Food & Dining'
+                        ? 'bg-orange-500/10 text-orange-500'
+                        : tx.category === 'Transport'
+                          ? 'bg-blue-500/10 text-blue-500'
+                          : tx.category === 'Income'
+                            ? 'bg-[var(--status-green)]/10 text-[var(--status-green)]'
+                            : 'bg-[var(--accent-violet)]/10 text-[var(--accent-violet)]'
+                    }`}
+                  >
+                    <Wallet size={20} />
                   </div>
-                  <div className="text-[10px] text-[var(--text-muted)] mt-1 flex flex-col items-end">
-                    <span>{new Date(tx.date).toLocaleDateString()}</span>
-                    {tx.note && <span className="opacity-70 mt-0.5 max-w-[120px] truncate" title={tx.note}>{tx.note}</span>}
+                  <div>
+                    <p className="font-medium text-[var(--text-main)] group-hover:text-[var(--accent-violet)] transition-colors">
+                      {tx.recipient}
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      {tx.category} • {tx.method}
+                    </p>
                   </div>
                 </div>
-                
-                <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => { e.stopPropagation(); setEditingTx(tx); }} className="p-1.5 rounded bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors">
-                    <Edit3 size={14} />
-                  </button>
-                  <button onClick={(e) => handleDelete(e, tx)} className="p-1.5 rounded bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--status-red)] transition-colors">
-                    <Trash2 size={14} />
-                  </button>
+                <div className="flex items-center gap-4 text-right">
+                  <div className="flex flex-col items-end mr-2">
+                    <div
+                      className={`font-bold tabular-nums ${
+                        tx.type === 'Income' || tx.type === 'Borrow'
+                          ? 'text-[var(--status-green)]'
+                          : tx.type === 'Lend'
+                            ? 'text-[var(--status-yellow)]'
+                            : 'text-[var(--text-main)]'
+                      }`}
+                    >
+                      {tx.type === 'Income' || tx.type === 'Borrow' ? '+' : ''}₹
+                      {tx.amount.toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-[var(--text-muted)] mt-1 flex flex-col items-end">
+                      <span>{new Date(tx.date).toLocaleDateString()}</span>
+                      {tx.note && (
+                        <span className="opacity-70 mt-0.5 max-w-[120px] truncate" title={tx.note}>
+                          {tx.note}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTx(tx);
+                      }}
+                      className="p-1.5 rounded bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors"
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(e, tx)}
+                      className="p-1.5 rounded bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--status-red)] transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )) : (
-            <div className="p-8 text-center text-[var(--text-muted)]">
-              No transactions found.
-            </div>
+            ))
+          ) : (
+            <div className="p-8 text-center text-[var(--text-muted)]">No transactions found.</div>
           )}
         </div>
       </div>
-      
-      <EditTransactionModal 
-        isOpen={!!editingTx} 
-        transaction={editingTx} 
-        onClose={() => setEditingTx(null)} 
+
+      <EditTransactionModal
+        isOpen={!!editingTx}
+        transaction={editingTx}
+        onClose={() => setEditingTx(null)}
       />
-      <DeleteAuthModal 
-        isOpen={!!pendingDeleteTx} 
-        transaction={pendingDeleteTx} 
-        onClose={() => setPendingDeleteTx(null)} 
-        onConfirm={(id) => deleteTransaction(id)} 
+      <DeleteAuthModal
+        isOpen={!!pendingDeleteTx}
+        transaction={pendingDeleteTx}
+        onClose={() => setPendingDeleteTx(null)}
+        onConfirm={(id) => deleteTransaction(id)}
       />
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={!!confirmConfig}
         title={confirmConfig?.title}
         description={confirmConfig?.description}

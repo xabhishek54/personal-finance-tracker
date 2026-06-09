@@ -17,9 +17,11 @@
 ---
 
 ## 🌟 Overview
+
 **Finance Tracker** is a progressive, offline-capable mobile and web application built with React, Vite, TailwindCSS, and Capacitor. It is designed to be the ultimate companion for tracking your daily expenses, incomes, debts, and budgets seamlessly across all your devices.
 
 ## ✨ Features
+
 - **🌐 Offline-First Syncing**: Works perfectly without an internet connection. Your data saves locally and automatically syncs to Firebase the moment you are back online.
 - **💼 Multi-Workspace Support**: Separate your finances into custom "Modes" (e.g., Personal, Business, Vacation). Each mode maintains its own isolated budgets and transaction logs.
 - **🤝 Lend & Borrow Tracking**: Keep a close eye on money you owe or are owed with a dedicated Debts tracker.
@@ -32,16 +34,19 @@
 ## 🚀 Getting Started
 
 ### Web Application
+
 You can use the app directly in your browser without any installation!
 👉 **[Open Finance Tracker Web](https://finlog-phi-seven.vercel.app/)**
 
 ### Mobile App Download
-Download the standalone native Android app for the best mobile experience:
-👉 **[Download APK Here]** *(Link coming soon)*
 
-*(Alternatively, you can open the web link in Chrome on Android and tap "Add to Home Screen" to install it as a PWA).*
+Download the standalone native Android app for the best mobile experience:
+👉 **[Download APK Here]** _(Link coming soon)_
+
+_(Alternatively, you can open the web link in Chrome on Android and tap "Add to Home Screen" to install it as a PWA)._
 
 ## 💻 Tech Stack
+
 - **Frontend Core:** React 19, React Router v7, Zustand (State Management)
 - **Styling:** TailwindCSS v4, Lucide React (Icons)
 - **Database & Auth:** Firebase Firestore, Firebase Authentication
@@ -50,6 +55,7 @@ Download the standalone native Android app for the best mobile experience:
 - **Build Tool:** Vite, Vite PWA Plugin
 
 ## 🛠️ Local Development
+
 If you'd like to run the project locally or contribute:
 
 1. Clone the repository:
@@ -73,9 +79,11 @@ If you'd like to run the project locally or contribute:
    ```
 
 ## 🔒 Privacy & Security
+
 Your data is securely stored in Firebase under strict security rules. The application implements standard authentication flows and allows you to put passwords behind destructive actions (like clearing data or deleting transactions).
 
 ---
+
 <div align="center">
   <sub>Built with ❤️ for better financial health.</sub>
 </div>

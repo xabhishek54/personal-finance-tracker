@@ -30,9 +30,13 @@ export default function SyncIndicator() {
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center animate-[popIn_300ms_ease-out]">
-      <div className={`px-4 py-2 rounded-full shadow-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md transition-colors ${
-        !isOnline ? 'bg-[var(--status-red)]/90 text-white' : 'bg-[var(--accent-violet)]/90 text-white'
-      }`}>
+      <div
+        className={`px-4 py-2 rounded-full shadow-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md transition-colors ${
+          !isOnline
+            ? 'bg-[var(--status-red)]/90 text-white'
+            : 'bg-[var(--accent-violet)]/90 text-white'
+        }`}
+      >
         {!isOnline ? (
           <>
             <WifiOff size={14} />

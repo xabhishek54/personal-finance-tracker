@@ -2,7 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Check } from 'lucide-react';
 
-export default function PromptModal({ isOpen, title, description, initialValue, placeholder, onClose, onSubmit }) {
+export default function PromptModal({
+  isOpen,
+  title,
+  description,
+  initialValue,
+  placeholder,
+  onClose,
+  onSubmit,
+}) {
   const [value, setValue] = useState(initialValue || '');
   const inputRef = useRef(null);
 
@@ -28,7 +36,11 @@ export default function PromptModal({ isOpen, title, description, initialValue, 
       <div className="w-full max-w-sm bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="p-4 border-b border-[var(--bg-surface-lit)] flex justify-between items-center">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} type="button" className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] text-[var(--text-muted)] transition-colors">
+          <button
+            onClick={onClose}
+            type="button"
+            className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] text-[var(--text-muted)] transition-colors"
+          >
             <X size={18} />
           </button>
         </div>

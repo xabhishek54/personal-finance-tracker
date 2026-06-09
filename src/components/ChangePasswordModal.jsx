@@ -23,12 +23,12 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       setError('Please fill out all fields.');
       return;
     }
-    
+
     if (newPassword.length < 6) {
       setError('New password must be at least 6 characters.');
       return;
     }
-    
+
     setIsUpdating(true);
     try {
       const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
@@ -60,7 +60,10 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Lock size={20} className="text-[var(--accent-violet)]" /> Change Password
           </h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] transition-colors">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] transition-colors"
+          >
             <X size={20} />
           </button>
         </header>
@@ -76,7 +79,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
               className="w-full px-4 py-3 rounded-xl bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] outline-none transition-colors text-sm font-medium"
             />
           </div>
-          
+
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">New Password</label>
             <input
@@ -89,9 +92,13 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
           </div>
 
           {error && <p className="text-xs text-[var(--status-red)]">{error}</p>}
-          {success && <p className="text-xs text-[var(--status-green)] flex items-center gap-1"><Check size={14} /> {success}</p>}
+          {success && (
+            <p className="text-xs text-[var(--status-green)] flex items-center gap-1">
+              <Check size={14} /> {success}
+            </p>
+          )}
 
-          <button 
+          <button
             type="submit"
             disabled={isUpdating}
             className="w-full py-3.5 mt-2 rounded-xl bg-[var(--accent-violet)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--accent-glow)] active:scale-[0.98] transition-transform disabled:opacity-50"

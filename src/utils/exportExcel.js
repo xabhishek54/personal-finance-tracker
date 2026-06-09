@@ -3,18 +3,18 @@ import { format, parseISO } from 'date-fns';
 
 export function exportTransactionsToExcel(transactions, budgets) {
   // Sheet 1: All Transactions
-  const txData = transactions.map(tx => ({
+  const txData = transactions.map((tx) => ({
     Date: format(parseISO(tx.date), 'yyyy-MM-dd'),
     Category: tx.category,
     Recipient: tx.recipient,
-    Amount: (tx.type === 'Income' || tx.type === 'Borrow') ? `+ ₹${tx.amount}` : `- ₹${tx.amount}`,
-    Impact: (tx.type === 'Income' || tx.type === 'Borrow') ? 'Addition' : 'Subtraction',
+    Amount: tx.type === 'Income' || tx.type === 'Borrow' ? `+ ₹${tx.amount}` : `- ₹${tx.amount}`,
+    Impact: tx.type === 'Income' || tx.type === 'Borrow' ? 'Addition' : 'Subtraction',
     Type: tx.type,
     'Payment Method': tx.method,
-    'Reason/Note': tx.note || ''
+    'Reason/Note': tx.note || '',
   }));
   const wsAll = XLSX.utils.json_to_sheet(txData);
-  
+
   // Format column widths
   wsAll['!cols'] = [
     { wch: 12 }, // Date
@@ -24,12 +24,12 @@ export function exportTransactionsToExcel(transactions, budgets) {
     { wch: 12 }, // Impact
     { wch: 10 }, // Type
     { wch: 15 }, // Payment Method
-    { wch: 30 }  // Reason/Note
+    { wch: 30 }, // Reason/Note
   ];
 
   // Sheet 2: Monthly Summary
   const monthlyDataMap = {};
-  transactions.forEach(tx => {
+  transactions.forEach((tx) => {
     const month = format(parseISO(tx.date), 'yyyy-MM');
     if (!monthlyDataMap[month]) {
       monthlyDataMap[month] = { Income: 0, Expense: 0 };
@@ -42,7 +42,7 @@ export function exportTransactionsToExcel(transactions, budgets) {
     Month: month,
     'Total Income': data.Income,
     'Total Expenses': data.Expense,
-    'Net Savings': data.Income - data.Expense
+    'Net Savings': data.Income - data.Expense,
   }));
   const wsSummary = XLSX.utils.json_to_sheet(summaryData);
 
@@ -51,8 +51,8 @@ export function exportTransactionsToExcel(transactions, budgets) {
     Category: category,
     'Amount Spent': b.spent,
     'Budget Set': b.limit,
-    'Remaining': Math.max(b.limit - b.spent, 0),
-    '% Used': b.limit > 0 ? `${Math.round((b.spent / b.limit) * 100)}%` : '0%'
+    Remaining: Math.max(b.limit - b.spent, 0),
+    '% Used': b.limit > 0 ? `${Math.round((b.spent / b.limit) * 100)}%` : '0%',
   }));
   const wsCat = XLSX.utils.json_to_sheet(catData);
 
