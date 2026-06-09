@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
 import { db } from '../firebase';
@@ -15,6 +16,18 @@ export default function ClearDataModal({ isOpen, onClose }) {
   const [error, setError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [step, setStep] = useState(1);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -69,8 +82,8 @@ export default function ClearDataModal({ isOpen, onClose }) {
     setIsDeleting(false);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[popIn_200ms_ease-out]">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[popIn_200ms_ease-out]">
       <div className="w-full max-w-md bg-[var(--bg-surface)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         
         <header className="flex justify-between items-center p-4 border-b border-[var(--bg-surface-lit)]">
@@ -83,8 +96,20 @@ export default function ClearDataModal({ isOpen, onClose }) {
         </header>
 
         <div className="p-6 flex flex-col gap-6">
-          
-          {step === 1 ? (
+          {!isOnline ? (
+            <div className="flex flex-col items-center gap-3 text-center py-4">
+              <div className="w-16 h-16 rounded-full bg-[var(--status-red)]/10 text-[var(--status-red)] flex items-center justify-center">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-bold">Offline Mode</h3>
+              <p className="text-sm text-[var(--text-muted)]">
+                You cannot delete data while offline to prevent synchronization conflicts. Please connect to the internet.
+              </p>
+              <button onClick={onClose} className="w-full py-3.5 mt-4 rounded-xl bg-[var(--bg-surface-lit)] font-bold active:scale-[0.98]">
+                Close
+              </button>
+            </div>
+          ) : step === 1 ? (
             <>
               <p className="text-sm text-[var(--text-muted)]">
                 You are about to permanently delete your transaction data. Please select what you want to delete and verify your password to continue.
@@ -170,6 +195,7 @@ export default function ClearDataModal({ isOpen, onClose }) {
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

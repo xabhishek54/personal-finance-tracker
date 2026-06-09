@@ -1,3 +1,19 @@
-Now that everything is done for webapp, I want you to create this for a mobile app which is same as the webapp, if changes made on the mobile app must bring changes everywhere
-Also is it possible that the mobile app can work offline, and when the users comes back online, then it will sync to the database and the servers
-Make sure its smooth even in the mobile app,
+so i reviewed the changes and i want you to fix these bugs or add these changes
+i) The mobile app icon didnt change, fix this
+ii) i dont like the icon, it should be minimalistc, related to finance type of stuff
+iii) i dont like mode selection option, like rn i need to click on the T on the left bar, thats not good, make it a good one, and replace that with the icon of the app, make a good suiting option for mode/workspace switching motion
+iv) i test the offline mode, its a bit glitchy, first while opening it flashes white mode then dark mode turns on, fix this, and when i open it in offline mode it shows error "please enable internet connection" and when i enable it it shows error "please disable internet connection" in offline mode, fix this, and also the sync indicator dont work, 
+in offline mode, switching between workspace, dont show the required changes  like transaction details and all those stuff
+v) btw, some settings like delete everything should be disabled in offline mode
+vi) the dropdown that comes when clicking to clear data occurs at top where in mobile i need to scroll up to view that thing, it must be like it should popup in my scrneen with the blur effect back side, like add transaction thing
+vii) likewise make the date time input more compact,
+viii) the export feature dont work, make sure it will only export the current workspace, design the format for the export better like the excel sheet
+ix)add various security update features in the settings page, like change password and many more, use standard protocols to do those, like how other websites do
+x) also for various things where it show default popup like for delete transaction, or edit workspace, delete workspace, can u change that we a good formatted popup
+xi)also what happened to the widgets
+xii) brainstorm yourself to add various features, or design improvements, UI improvement in both app or webapp, then add those
+xiii) each time i open the app ,like in web or app, it transitions from light mode to dark, i dont want that, i only wanted the transition to happen when i change the mode, not during the launch
+xiv) Throughly test this app, check for bugs, fix it 
+xv) Lastly, make a README.md for this github repo, with good format, writing down all the features, with download option for mobile( I will add the link later), link for website :https://finlog-phi-seven.vercel.app/
+
+At last provide walkthrough even for mobile app included

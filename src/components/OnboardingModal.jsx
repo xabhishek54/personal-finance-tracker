@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { Sparkles, ArrowRight } from 'lucide-react';
 
@@ -26,8 +27,8 @@ export default function OnboardingModal({ isOpen, onClose }) {
 
   if (!isOpen && !isRendered) return null;
 
-  return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'bg-black/60 backdrop-blur-sm' : 'bg-transparent pointer-events-none'}`}
+  return createPortal(
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'bg-black/60 backdrop-blur-sm' : 'bg-transparent pointer-events-none'}`}
       onTransitionEnd={() => !isOpen && setIsRendered(false)}
     >
       <div className={`w-full max-w-md bg-[var(--bg-surface)] rounded-2xl p-6 shadow-2xl transition-all duration-300 transform ${isOpen ? 'scale-100 opacity-100 modal-enter' : 'scale-95 opacity-0'}`}>
@@ -73,6 +74,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

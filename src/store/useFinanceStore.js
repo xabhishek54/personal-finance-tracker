@@ -3,24 +3,28 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { subMonths, isSameMonth, parseISO } from 'date-fns';
 import { db, auth } from '../firebase';
-import { collection, doc, setDoc, addDoc, onSnapshot, query, where, orderBy, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+
+const defaultSettings = {
+  budgets: {
+    'Food & Dining': { limit: 5000, spent: 0 },
+    'Transport': { limit: 2000, spent: 0 },
+    'Shopping': { limit: 4000, spent: 0 },
+    'Entertainment': { limit: 3000, spent: 0 },
+    'Rent & Utilities': { limit: 15000, spent: 0 },
+  },
+  useGlobalBudget: false,
+  globalBudgetLimit: 50000,
+  budgetCycle: '1 month',
+  includeLendBorrow: false,
+};
 
 export const useFinanceStore = create(
   persist(
     (set, get) => ({
       transactions: [],
-      budgets: {
-        'Food & Dining': { limit: 5000, spent: 0 },
-        'Transport': { limit: 2000, spent: 0 },
-        'Shopping': { limit: 4000, spent: 0 },
-        'Entertainment': { limit: 3000, spent: 0 },
-        'Rent & Utilities': { limit: 15000, spent: 0 },
-      },
-      useGlobalBudget: false,
-      globalBudgetLimit: 50000,
-      budgetCycle: '1 month',
+      
       theme: 'dark',
-      includeLendBorrow: false,
       hasCompletedOnboarding: true,
       hasUnreadNotifications: true,
       requirePasswordForDelete: false,
@@ -29,14 +33,66 @@ export const useFinanceStore = create(
       
       workspaces: [{ id: 'personal', name: 'Personal' }],
       activeWorkspaceId: 'personal',
+      
+      workspaceSettings: {
+        'personal': JSON.parse(JSON.stringify(defaultSettings))
+      },
 
       addWorkspace: async (name) => {
         const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
         const newWorkspaces = [...get().workspaces, { id, name }];
-        set({ workspaces: newWorkspaces, activeWorkspaceId: id });
+        const newSettings = { ...get().workspaceSettings, [id]: JSON.parse(JSON.stringify(defaultSettings)) };
+        
+        set({ workspaces: newWorkspaces, activeWorkspaceId: id, workspaceSettings: newSettings });
+        
         const uid = auth.currentUser?.uid;
         if (uid) {
-          await updateDoc(doc(db, 'users', uid), { workspaces: newWorkspaces, activeWorkspaceId: id });
+          await updateDoc(doc(db, 'users', uid), { 
+            workspaces: newWorkspaces, 
+            activeWorkspaceId: id,
+            workspaceSettings: newSettings
+          });
+        }
+      },
+
+      renameWorkspace: async (id, newName) => {
+        const newWorkspaces = get().workspaces.map(w => w.id === id ? { ...w, name: newName } : w);
+        set({ workspaces: newWorkspaces });
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          await updateDoc(doc(db, 'users', uid), { workspaces: newWorkspaces });
+        }
+      },
+
+      deleteWorkspace: async (id) => {
+        const { workspaces, workspaceSettings, transactions, activeWorkspaceId } = get();
+        if (workspaces.length <= 1) return; // Cannot delete last workspace
+
+        const newWorkspaces = workspaces.filter(w => w.id !== id);
+        const newSettings = { ...workspaceSettings };
+        delete newSettings[id];
+        
+        const newActiveId = activeWorkspaceId === id ? newWorkspaces[0].id : activeWorkspaceId;
+        
+        set({ workspaces: newWorkspaces, workspaceSettings: newSettings, activeWorkspaceId: newActiveId });
+        
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          // Delete transactions from firestore
+          const txsToDelete = transactions.filter(t => (t.workspaceId || 'personal') === id);
+          if (txsToDelete.length > 0) {
+            const batch = writeBatch(db);
+            txsToDelete.forEach(tx => {
+              batch.delete(doc(db, 'users', uid, 'transactions', tx.id));
+            });
+            await batch.commit();
+          }
+
+          await updateDoc(doc(db, 'users', uid), { 
+            workspaces: newWorkspaces,
+            workspaceSettings: newSettings,
+            activeWorkspaceId: newActiveId
+          });
         }
       },
 
@@ -64,28 +120,67 @@ export const useFinanceStore = create(
           updateDoc(doc(db, 'users', uid), { theme: newTheme });
         }
       },
-      setIncludeLendBorrow: (val) => {
-        set({ includeLendBorrow: val });
+
+      setIncludeLendBorrow: async (val) => {
+        const { activeWorkspaceId, workspaceSettings } = get();
+        const newSettings = {
+          ...workspaceSettings,
+          [activeWorkspaceId]: { ...workspaceSettings[activeWorkspaceId], includeLendBorrow: val }
+        };
+        set({ workspaceSettings: newSettings });
         const uid = auth.currentUser?.uid;
         if (uid) {
-          updateDoc(doc(db, 'users', uid), { includeLendBorrow: val });
+          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
         }
       },
+
       setBudgetCycle: async (cycle) => {
-        set({ budgetCycle: cycle });
+        const { activeWorkspaceId, workspaceSettings } = get();
+        const newSettings = {
+          ...workspaceSettings,
+          [activeWorkspaceId]: { ...workspaceSettings[activeWorkspaceId], budgetCycle: cycle }
+        };
+        set({ workspaceSettings: newSettings });
         const uid = auth.currentUser?.uid;
         if (uid) {
-          await updateDoc(doc(db, 'users', uid), { budgetCycle: cycle });
+          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
         }
       },
+
       setGlobalBudgetOptions: async (useGlobal, limit) => {
-        set({ useGlobalBudget: useGlobal, globalBudgetLimit: limit });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { 
+        const { activeWorkspaceId, workspaceSettings } = get();
+        const newSettings = {
+          ...workspaceSettings,
+          [activeWorkspaceId]: { 
+            ...workspaceSettings[activeWorkspaceId], 
             useGlobalBudget: useGlobal, 
             globalBudgetLimit: limit 
-          });
+          }
+        };
+        set({ workspaceSettings: newSettings });
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
+        }
+      },
+
+      updateBudget: async (category, limit) => {
+        const { activeWorkspaceId, workspaceSettings } = get();
+        const activeSettings = workspaceSettings[activeWorkspaceId];
+        const newSettings = {
+          ...workspaceSettings,
+          [activeWorkspaceId]: {
+            ...activeSettings,
+            budgets: {
+              ...activeSettings.budgets,
+              [category]: { ...activeSettings.budgets[category], limit }
+            }
+          }
+        };
+        set({ workspaceSettings: newSettings });
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
         }
       },
       
@@ -97,16 +192,28 @@ export const useFinanceStore = create(
         const unsubUser = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            if (data.budgets) set({ budgets: data.budgets });
             if (data.theme) set({ theme: data.theme });
-            if (data.includeLendBorrow !== undefined) set({ includeLendBorrow: data.includeLendBorrow });
-            if (data.useGlobalBudget !== undefined) set({ useGlobalBudget: data.useGlobalBudget });
-            if (data.globalBudgetLimit !== undefined) set({ globalBudgetLimit: data.globalBudgetLimit });
-            if (data.budgetCycle !== undefined) set({ budgetCycle: data.budgetCycle });
             if (data.hasUnreadNotifications !== undefined) set({ hasUnreadNotifications: data.hasUnreadNotifications });
             if (data.requirePasswordForDelete !== undefined) set({ requirePasswordForDelete: data.requirePasswordForDelete });
             if (data.workspaces) set({ workspaces: data.workspaces });
             if (data.activeWorkspaceId) set({ activeWorkspaceId: data.activeWorkspaceId });
+            
+            if (data.workspaceSettings) {
+              set({ workspaceSettings: data.workspaceSettings });
+            } else if (data.budgets) {
+              // Migration from v1 to v2 (per-workspace settings)
+              set({
+                workspaceSettings: {
+                  'personal': {
+                    budgets: data.budgets,
+                    useGlobalBudget: data.useGlobalBudget ?? false,
+                    globalBudgetLimit: data.globalBudgetLimit ?? 50000,
+                    budgetCycle: data.budgetCycle ?? '1 month',
+                    includeLendBorrow: data.includeLendBorrow ?? false
+                  }
+                }
+              });
+            }
             
             if (data.hasCompletedOnboarding !== undefined) {
               set({ hasCompletedOnboarding: data.hasCompletedOnboarding });
@@ -116,17 +223,13 @@ export const useFinanceStore = create(
           } else {
             set({ hasCompletedOnboarding: false, hasUnreadNotifications: true, requirePasswordForDelete: false });
             setDoc(userDocRef, {
-              budgets: get().budgets,
               theme: get().theme,
-              includeLendBorrow: get().includeLendBorrow,
-              useGlobalBudget: get().useGlobalBudget,
-              globalBudgetLimit: get().globalBudgetLimit,
-              budgetCycle: get().budgetCycle,
               hasCompletedOnboarding: false,
               hasUnreadNotifications: true,
               requirePasswordForDelete: false,
               workspaces: get().workspaces,
-              activeWorkspaceId: get().activeWorkspaceId
+              activeWorkspaceId: get().activeWorkspaceId,
+              workspaceSettings: get().workspaceSettings
             });
           }
         });
@@ -136,35 +239,42 @@ export const useFinanceStore = create(
           const txs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => typeof t.date === 'string');
           set({ transactions: txs });
           
-          const cycle = get().budgetCycle;
+          const { workspaceSettings } = get();
+          const newWorkspaceSettings = JSON.parse(JSON.stringify(workspaceSettings));
           const now = new Date();
-          
-          const newBudgets = JSON.parse(JSON.stringify(get().budgets));
-          Object.keys(newBudgets).forEach(k => newBudgets[k].spent = 0);
-          
-          const currentWorkspaceId = get().activeWorkspaceId;
-          const workspaceTxs = txs.filter(t => (t.workspaceId || 'personal') === currentWorkspaceId);
 
-          workspaceTxs.forEach(t => {
-            if (t.type === 'Expense' && newBudgets[t.category]) {
-              const tDate = parseISO(t.date);
-              let include = true;
-              
-              if (cycle === '1 month') {
-                include = tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
-              } else if (cycle === '2 months') {
-                const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                include = tDate >= twoMonthsAgo;
-              } else if (cycle === '1 year') {
-                include = tDate.getFullYear() === now.getFullYear();
+          // Recalculate spent budgets for all workspaces
+          Object.keys(newWorkspaceSettings).forEach(wId => {
+            const wSettings = newWorkspaceSettings[wId];
+            if (!wSettings.budgets) return;
+            
+            Object.keys(wSettings.budgets).forEach(k => wSettings.budgets[k].spent = 0);
+            const cycle = wSettings.budgetCycle || '1 month';
+            
+            const workspaceTxs = txs.filter(t => (t.workspaceId || 'personal') === wId);
+            
+            workspaceTxs.forEach(t => {
+              if (t.type === 'Expense' && wSettings.budgets[t.category]) {
+                const tDate = parseISO(t.date);
+                let include = true;
+                
+                if (cycle === '1 month') {
+                  include = tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+                } else if (cycle === '2 months') {
+                  const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                  include = tDate >= twoMonthsAgo;
+                } else if (cycle === '1 year') {
+                  include = tDate.getFullYear() === now.getFullYear();
+                }
+                
+                if (include) {
+                  wSettings.budgets[t.category].spent += Number(t.amount);
+                }
               }
-              
-              if (include) {
-                newBudgets[t.category].spent += Number(t.amount);
-              }
-            }
+            });
           });
-          set({ budgets: newBudgets });
+
+          set({ workspaceSettings: newWorkspaceSettings });
         });
 
         return () => {
@@ -216,21 +326,21 @@ export const useFinanceStore = create(
         await updateDoc(doc(db, 'users', uid, 'transactions', id), updatedTx);
       },
 
-      updateBudget: async (category, limit) => {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
-        const currentBudgets = get().budgets;
-        const newBudgets = {
-          ...currentBudgets,
-          [category]: { ...currentBudgets[category], limit }
-        };
-        await updateDoc(doc(db, 'users', uid), { budgets: newBudgets });
-      },
-
       deleteTransaction: async (id) => {
         const uid = auth.currentUser?.uid;
         if (!uid) return;
         await deleteDoc(doc(db, 'users', uid, 'transactions', id));
+      },
+
+      moveTransactionsToWorkspace: async (txIds, newWorkspaceId) => {
+        const uid = auth.currentUser?.uid;
+        if (!uid || !txIds.length) return;
+        
+        const batch = writeBatch(db);
+        txIds.forEach(id => {
+          batch.update(doc(db, 'users', uid, 'transactions', id), { workspaceId: newWorkspaceId });
+        });
+        await batch.commit();
       },
 
       markAsSettled: async (id) => {
@@ -268,7 +378,10 @@ export const useFinanceStore = create(
       },
 
       getSmartInsights: () => {
-        const { transactions, budgets, activeWorkspaceId } = get();
+        const { transactions, workspaceSettings, activeWorkspaceId } = get();
+        const settings = workspaceSettings[activeWorkspaceId] || defaultSettings;
+        const { budgets } = settings;
+        
         const now = new Date();
         const lastMonth = subMonths(now, 1);
 
@@ -313,17 +426,13 @@ export const useFinanceStore = create(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         transactions: state.transactions,
-        budgets: state.budgets,
         theme: state.theme,
-        includeLendBorrow: state.includeLendBorrow,
-        useGlobalBudget: state.useGlobalBudget,
-        globalBudgetLimit: state.globalBudgetLimit,
-        budgetCycle: state.budgetCycle,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         hasUnreadNotifications: state.hasUnreadNotifications,
         requirePasswordForDelete: state.requirePasswordForDelete,
         workspaces: state.workspaces,
-        activeWorkspaceId: state.activeWorkspaceId
+        activeWorkspaceId: state.activeWorkspaceId,
+        workspaceSettings: state.workspaceSettings
       })
     }
   )
@@ -333,8 +442,16 @@ export const useFilteredTransactions = () => {
   const transactions = useFinanceStore(state => state.transactions);
   const activeWorkspaceId = useFinanceStore(state => state.activeWorkspaceId);
   
-  // Return memoized array to prevent infinite re-renders in Zustand/React 18
   return React.useMemo(() => {
     return transactions.filter(t => (t.workspaceId || 'personal') === activeWorkspaceId);
   }, [transactions, activeWorkspaceId]);
+};
+
+export const useWorkspaceSettings = () => {
+  const workspaceSettings = useFinanceStore(state => state.workspaceSettings);
+  const activeWorkspaceId = useFinanceStore(state => state.activeWorkspaceId);
+  
+  return React.useMemo(() => {
+    return workspaceSettings[activeWorkspaceId] || defaultSettings;
+  }, [workspaceSettings, activeWorkspaceId]);
 };

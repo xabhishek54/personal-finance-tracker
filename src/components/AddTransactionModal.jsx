@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { X, Check } from 'lucide-react';
 
@@ -12,6 +13,7 @@ export default function AddTransactionModal({ isOpen, onClose }) {
   const [recipient, setRecipient] = useState('');
   const [method, setMethod] = useState('UPI');
   const [note, setNote] = useState('');
+  const [date, setDate] = useState('');
   
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
@@ -24,6 +26,9 @@ export default function AddTransactionModal({ isOpen, onClose }) {
       setNote('');
       setType('Expense');
       setCategory('Food & Dining');
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      setDate(now.toISOString().slice(0, 16));
     }
   }, [isOpen]);
 
@@ -31,16 +36,16 @@ export default function AddTransactionModal({ isOpen, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!amount || !recipient) return;
+    if (!amount) return;
     
     addTransaction({
       amount: Number(amount),
       type,
       category,
-      recipient,
+      recipient: recipient || 'Unknown',
       method,
       note,
-      date: new Date().toISOString(),
+      date: date ? new Date(date).toISOString() : new Date().toISOString(),
     });
     
     onClose();
@@ -60,24 +65,25 @@ export default function AddTransactionModal({ isOpen, onClose }) {
   
   const merchants = getUniqueMerchants().filter(m => m.toLowerCase().includes(recipient.toLowerCase()) && m !== recipient);
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-0 bg-black/40 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-0 bg-black/40 backdrop-blur-md"
       style={{ backdropFilter: 'blur(8px)' }}
       onClick={handleBackdropClick}
     >
       <div 
         ref={modalRef}
-        className="bg-[var(--bg-surface)] w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden modal-enter max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="bg-[var(--bg-surface)] w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden modal-enter flex flex-col max-h-[85vh]"
       >
-        <div className="p-4 flex justify-between items-center border-b border-[var(--bg-surface-lit)] sticky top-0 bg-[var(--bg-surface)] z-20">
+        <div className="p-4 flex justify-between items-center border-b border-[var(--bg-surface-lit)] shrink-0 bg-[var(--bg-surface)] z-20">
           <h2 className="text-lg font-bold">New Transaction</h2>
           <button onClick={onClose} type="button" className="p-2 rounded-full hover:bg-[var(--bg-surface-lit)] text-[var(--text-muted)]">
             <X size={20} />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
+        <div className="overflow-y-auto p-6 flex flex-col gap-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <form id="add-tx-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Amount Field */}
           <div className="flex flex-col items-center">
             <span className="text-[var(--text-muted)] text-sm mb-2">Amount</span>
@@ -146,6 +152,18 @@ export default function AddTransactionModal({ isOpen, onClose }) {
             )}
           </div>
 
+          {/* Date Picker */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[var(--text-muted)] font-medium">Date & Time</label>
+            <input 
+              type="datetime-local" 
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-lg px-3 py-2 text-xs focus:border-[var(--accent-violet)] focus:outline-none transition-colors"
+            />
+          </div>
+
           {/* Categories Grid */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-[var(--text-muted)] font-medium">Category</label>
@@ -179,15 +197,20 @@ export default function AddTransactionModal({ isOpen, onClose }) {
             />
           </div>
 
+          </form>
+        </div>
+        <div className="p-4 border-t border-[var(--bg-surface-lit)] bg-[var(--bg-surface)] shrink-0">
           <button 
+            form="add-tx-form"
             type="submit" 
-            className="mt-2 w-full py-3.5 rounded-xl bg-[var(--accent-violet)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--accent-glow)] active:scale-[0.98] transition-transform"
+            className="w-full py-3.5 rounded-xl bg-[var(--accent-violet)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--accent-glow)] active:scale-[0.98] transition-transform"
           >
             <Check size={20} />
             Save Transaction
           </button>
-        </form>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

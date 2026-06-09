@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
+import { useFinanceStore, useFilteredTransactions, useWorkspaceSettings } from '../store/useFinanceStore';
 import { useAuth } from '../context/AuthContext';
 import { ArrowUpRight, ArrowDownRight, Wallet, Bell, Sun, Moon, Sparkles, PieChart, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -8,7 +8,8 @@ import { format, parseISO } from 'date-fns';
 import CountUp from './CountUp';
 
 export default function Dashboard() {
-  const { budgets, theme, toggleTheme, getSmartInsights, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle, hasUnreadNotifications, markNotificationsRead } = useFinanceStore();
+  const { theme, toggleTheme, getSmartInsights, hasUnreadNotifications, markNotificationsRead } = useFinanceStore();
+  const { budgets, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle } = useWorkspaceSettings();
   const transactions = useFilteredTransactions();
   const { currentUser } = useAuth();
   const navigate = useNavigate();

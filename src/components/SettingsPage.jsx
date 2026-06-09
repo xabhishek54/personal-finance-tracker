@@ -1,11 +1,13 @@
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useFinanceStore, useWorkspaceSettings } from '../store/useFinanceStore';
 import { Save, SlidersHorizontal, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import ClearDataModal from './ClearDataModal';
 import SecurityAuthModal from './SecurityAuthModal';
+import ChangePasswordModal from './ChangePasswordModal';
 
 export default function SettingsPage() {
-  const { budgets, updateBudget, includeLendBorrow, setIncludeLendBorrow, useGlobalBudget, globalBudgetLimit, setGlobalBudgetOptions, budgetCycle, setBudgetCycle, requirePasswordForDelete, setRequirePasswordForDelete } = useFinanceStore();
+  const { updateBudget, setIncludeLendBorrow, setGlobalBudgetOptions, setBudgetCycle, requirePasswordForDelete, setRequirePasswordForDelete } = useFinanceStore();
+  const { budgets, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle } = useWorkspaceSettings();
   
   const [localBudgets, setLocalBudgets] = useState(
     Object.keys(budgets).reduce((acc, cat) => {
@@ -18,6 +20,7 @@ export default function SettingsPage() {
   const [localGlobalLimit, setLocalGlobalLimit] = useState(globalBudgetLimit);
   const [saved, setSaved] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [showDisableSecurityAuth, setShowDisableSecurityAuth] = useState(false);
 
   const handleSecurityToggle = (checked) => {
@@ -161,12 +164,29 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Danger Zone */}
+        {/* Security & Danger Zone */}
         <div className="surface-card p-6 flex flex-col gap-4 lg:col-span-2 border border-[var(--status-red)]/20 bg-gradient-to-br from-[var(--status-red)]/5 to-transparent">
           <div className="flex items-center gap-2 border-b border-[var(--status-red)]/10 pb-4">
-            <h2 className="text-lg font-semibold text-[var(--status-red)]">Danger Zone</h2>
+            <h2 className="text-lg font-semibold text-[var(--status-red)]">Security & Danger Zone</h2>
           </div>
+
+          {/* Change Password */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col">
+              <span className="font-medium text-[var(--text-main)]">Change Password</span>
+              <span className="text-xs text-[var(--text-muted)] mt-1">
+                Update your account password securely.
+              </span>
+            </div>
+            <button 
+              onClick={() => setIsPasswordModalOpen(true)}
+              className="px-4 py-2 text-sm font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors whitespace-nowrap shrink-0"
+            >
+              Update Password
+            </button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-[var(--status-red)]/10">
             <div className="flex flex-col">
               <span className="font-medium">Require Password on Delete</span>
               <span className="text-xs text-[var(--text-muted)] mt-1">
@@ -204,6 +224,7 @@ export default function SettingsPage() {
       </div>
 
       <ClearDataModal isOpen={isClearModalOpen} onClose={() => setIsClearModalOpen(false)} />
+      <ChangePasswordModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} />
       <SecurityAuthModal 
         isOpen={showDisableSecurityAuth} 
         onClose={() => setShowDisableSecurityAuth(false)} 

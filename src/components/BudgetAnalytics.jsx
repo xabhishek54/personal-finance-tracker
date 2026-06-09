@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
+import { useFinanceStore, useFilteredTransactions, useWorkspaceSettings } from '../store/useFinanceStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { Settings, Sparkles, BarChart2, PieChart as PieChartIcon } from 'lucide-react';
 import { subMonths, format, parseISO } from 'date-fns';
 
 export default function BudgetAnalytics() {
-  const { budgets, getSmartInsights, useGlobalBudget, globalBudgetLimit, budgetCycle } = useFinanceStore();
+  const { getSmartInsights } = useFinanceStore();
+  const { budgets, useGlobalBudget, globalBudgetLimit, budgetCycle } = useWorkspaceSettings();
   const transactions = useFilteredTransactions();
   const [chartType, setChartType] = useState('pie');
+  const [trendDuration, setTrendDuration] = useState(6);
 
   const now = new Date();
   
@@ -63,10 +65,10 @@ export default function BudgetAnalytics() {
     
   const diffYesterday = todaySpent - yesterdaySpent;
 
-  // Generate 6-month trend data
-  const trendData = Array.from({ length: 6 }).map((_, i) => {
-    const targetDate = subMonths(new Date(), 5 - i);
-    const monthLabel = format(targetDate, 'MMM');
+  // Generate trend data
+  const trendData = Array.from({ length: trendDuration }).map((_, i) => {
+    const targetDate = subMonths(new Date(), trendDuration - 1 - i);
+    const monthLabel = trendDuration > 6 ? format(targetDate, 'MMM yy') : format(targetDate, 'MMM');
     
     const monthTxs = transactions.filter(t => {
       const d = parseISO(t.date);
@@ -202,7 +204,20 @@ export default function BudgetAnalytics() {
 
         {/* Historical Trend Chart */}
         <div className="surface-card p-6 flex flex-col items-center">
-          <h2 className="text-sm font-semibold self-start mb-4">6-Month Trend</h2>
+          <div className="w-full flex justify-between items-center mb-4">
+            <h2 className="text-sm font-semibold">Spending Trend</h2>
+            <select 
+              value={trendDuration} 
+              onChange={e => setTrendDuration(Number(e.target.value))}
+              className="bg-[var(--bg-surface-lit)] text-[var(--text-main)] text-xs px-2 py-1.5 rounded-lg outline-none font-medium cursor-pointer border-none"
+            >
+              <option value={1}>1 Month</option>
+              <option value={2}>2 Months</option>
+              <option value={3}>3 Months</option>
+              <option value={6}>6 Months</option>
+              <option value={12}>1 Year</option>
+            </select>
+          </div>
           <div className="w-full h-64 max-w-md">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>

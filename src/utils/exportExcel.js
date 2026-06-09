@@ -14,6 +14,18 @@ export function exportTransactionsToExcel(transactions, budgets) {
     'Reason/Note': tx.note || ''
   }));
   const wsAll = XLSX.utils.json_to_sheet(txData);
+  
+  // Format column widths
+  wsAll['!cols'] = [
+    { wch: 12 }, // Date
+    { wch: 15 }, // Category
+    { wch: 20 }, // Recipient
+    { wch: 15 }, // Amount
+    { wch: 12 }, // Impact
+    { wch: 10 }, // Type
+    { wch: 15 }, // Payment Method
+    { wch: 30 }  // Reason/Note
+  ];
 
   // Sheet 2: Monthly Summary
   const monthlyDataMap = {};

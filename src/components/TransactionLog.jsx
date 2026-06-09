@@ -1,17 +1,22 @@
-import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
-import { Search, Filter, Wallet, Download, ChevronDown, Edit3, Trash2, CheckSquare, Square } from 'lucide-react';
+import { useFinanceStore, useFilteredTransactions, useWorkspaceSettings } from '../store/useFinanceStore';
+import { Search, Filter, Wallet, Download, ChevronDown, Edit3, Trash2, CheckSquare, Square, FolderInput } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { exportTransactionsToExcel } from '../utils/exportExcel';
 import { isWithinInterval, parseISO } from 'date-fns';
 import EditTransactionModal from './EditTransactionModal';
 import DeleteAuthModal from './DeleteAuthModal';
+import ConfirmModal from './ConfirmModal';
 
 export default function TransactionLog() {
   const transactions = useFilteredTransactions();
+  const { budgets } = useWorkspaceSettings();
   const deleteTransaction = useFinanceStore(state => state.deleteTransaction);
   const getUniqueMerchants = useFinanceStore(state => state.getUniqueMerchants);
   const requirePasswordForDelete = useFinanceStore(state => state.requirePasswordForDelete);
   const isDeleteModeUnlocked = useFinanceStore(state => state.isDeleteModeUnlocked);
+  const workspaces = useFinanceStore(state => state.workspaces);
+  const activeWorkspaceId = useFinanceStore(state => state.activeWorkspaceId);
+  const moveTransactionsToWorkspace = useFinanceStore(state => state.moveTransactionsToWorkspace);
   
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -37,6 +42,7 @@ export default function TransactionLog() {
   
   const [editingTx, setEditingTx] = useState(null);
   const [pendingDeleteTx, setPendingDeleteTx] = useState(null);
+  const [confirmConfig, setConfirmConfig] = useState(null);
 
   const filteredTx = useMemo(() => {
     let result = transactions.filter(tx => {
@@ -69,9 +75,11 @@ export default function TransactionLog() {
     if (requirePasswordForDelete && !isDeleteModeUnlocked) {
       setPendingDeleteTx({ isBulk: false, ids: [tx.id], amount: tx.amount });
     } else {
-      if (window.confirm("Are you sure you want to delete this transaction?")) {
-        deleteTransaction(tx.id);
-      }
+      setConfirmConfig({
+        title: 'Delete Transaction?',
+        description: 'Are you sure you want to delete this transaction?',
+        onConfirm: () => deleteTransaction(tx.id)
+      });
     }
   };
 
@@ -90,11 +98,31 @@ export default function TransactionLog() {
     if (requirePasswordForDelete && !isDeleteModeUnlocked) {
       setPendingDeleteTx({ isBulk: true, ids: Array.from(selectedTxIds) });
     } else {
-      if (window.confirm(`Are you sure you want to delete ${selectedTxIds.size} transactions?`)) {
-        selectedTxIds.forEach(id => deleteTransaction(id));
+      setConfirmConfig({
+        title: 'Delete Transactions?',
+        description: `Are you sure you want to delete ${selectedTxIds.size} transactions?`,
+        onConfirm: () => {
+          selectedTxIds.forEach(id => deleteTransaction(id));
+          setSelectedTxIds(new Set());
+        }
+      });
+    }
+  };
+
+  const handleMoveSelected = (e) => {
+    const newWorkspaceId = e.target.value;
+    if (!newWorkspaceId) return;
+    setConfirmConfig({
+      title: 'Move Transactions?',
+      description: `Are you sure you want to move ${selectedTxIds.size} transactions?`,
+      confirmText: 'Move',
+      confirmStyle: 'primary',
+      onConfirm: () => {
+        moveTransactionsToWorkspace(Array.from(selectedTxIds), newWorkspaceId);
         setSelectedTxIds(new Set());
       }
-    }
+    });
+    e.target.value = '';
   };
 
   return (
@@ -103,7 +131,7 @@ export default function TransactionLog() {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Transactions</h1>
           <button 
-            onClick={() => exportTransactionsToExcel(transactions, useFinanceStore.getState().budgets)}
+            onClick={() => exportTransactionsToExcel(filteredTx, budgets)}
             className="flex items-center gap-2 text-sm font-medium bg-[var(--status-green)]/10 text-[var(--status-green)] hover:bg-[var(--status-green)]/20 px-3 py-1.5 rounded-lg transition-colors"
           >
             <Download size={16} /> Export
@@ -188,14 +216,30 @@ export default function TransactionLog() {
 
       <div className="flex-1 overflow-y-auto min-h-[400px]">
         {selectedTxIds.size > 0 && (
-          <div className="flex justify-between items-center bg-[var(--status-red)]/10 text-[var(--status-red)] p-3 rounded-xl mb-4 animate-[popIn_150ms_ease-out]">
+          <div className="flex justify-between items-center bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] p-3 rounded-xl mb-4 animate-[popIn_150ms_ease-out]">
             <span className="text-sm font-bold ml-2">{selectedTxIds.size} transaction{selectedTxIds.size > 1 ? 's' : ''} selected</span>
-            <button 
-              onClick={handleDeleteSelected} 
-              className="flex items-center gap-2 text-sm font-bold bg-[var(--status-red)] text-white px-4 py-2 rounded-lg active:scale-95 transition-transform shadow-lg shadow-[var(--status-red)]/20"
-            >
-              <Trash2 size={16} /> Delete Selected
-            </button>
+            <div className="flex gap-2">
+              <div className="relative flex items-center">
+                <FolderInput size={16} className="absolute left-3 text-white z-10 pointer-events-none" />
+                <select 
+                  onChange={handleMoveSelected}
+                  defaultValue=""
+                  className="appearance-none bg-[var(--accent-violet)] text-white text-sm font-bold pl-9 pr-8 py-2 rounded-lg cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-[var(--accent-glow)] outline-none border-none"
+                >
+                  <option value="" disabled>Move to Mode...</option>
+                  {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 text-white pointer-events-none" />
+              </div>
+              <button 
+                onClick={handleDeleteSelected} 
+                className="flex items-center gap-2 text-sm font-bold bg-[var(--status-red)] text-white px-4 py-2 rounded-lg active:scale-95 transition-transform shadow-lg shadow-[var(--status-red)]/20"
+              >
+                <Trash2 size={16} /> <span className="hidden sm:inline">Delete</span>
+              </button>
+            </div>
           </div>
         )}
         <div className="surface-card divide-y divide-[var(--bg-surface-lit)]">
@@ -273,6 +317,15 @@ export default function TransactionLog() {
         transaction={pendingDeleteTx} 
         onClose={() => setPendingDeleteTx(null)} 
         onConfirm={(id) => deleteTransaction(id)} 
+      />
+      <ConfirmModal 
+        isOpen={!!confirmConfig}
+        title={confirmConfig?.title}
+        description={confirmConfig?.description}
+        confirmText={confirmConfig?.confirmText || 'Delete'}
+        confirmStyle={confirmConfig?.confirmStyle || 'danger'}
+        onClose={() => setConfirmConfig(null)}
+        onConfirm={confirmConfig?.onConfirm}
       />
     </div>
   );
