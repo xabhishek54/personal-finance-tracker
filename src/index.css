@@ -24,12 +24,17 @@
     --text-muted: #9CA3AF;
   }
 
+  *, *::before, *::after {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-duration: 300ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   body {
     background-color: var(--bg-space);
     color: var(--text-main);
     font-family: Inter, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    transition: background-color 200ms, color 200ms;
   }
 
   /* Force Tabular Nums for currency and data */

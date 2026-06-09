@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { Settings, Sparkles, BarChart2, PieChart as PieChartIcon } from 'lucide-react';
 import { subMonths, format, parseISO } from 'date-fns';
 
 export default function BudgetAnalytics() {
-  const { budgets, transactions, getSmartInsights, useGlobalBudget, globalBudgetLimit, budgetCycle } = useFinanceStore();
+  const { budgets, getSmartInsights, useGlobalBudget, globalBudgetLimit, budgetCycle } = useFinanceStore();
+  const transactions = useFilteredTransactions();
   const [chartType, setChartType] = useState('pie');
 
   const now = new Date();

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
 import { db } from '../firebase';
 import { collection, query, getDocs, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -9,7 +9,7 @@ import { subHours, subMonths, parseISO } from 'date-fns';
 
 export default function ClearDataModal({ isOpen, onClose }) {
   const { currentUser } = useAuth();
-  const { transactions } = useFinanceStore();
+  const transactions = useFilteredTransactions();
   const [clearType, setClearType] = useState('24h'); // '24h', 'month', 'all'
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -92,15 +92,26 @@ export default function ClearDataModal({ isOpen, onClose }) {
 
               <div className="flex flex-col gap-3">
                 <label className="text-sm font-semibold">What to delete?</label>
-                <select 
-                  value={clearType}
-                  onChange={(e) => setClearType(e.target.value)}
-                  className="w-full p-3.5 rounded-xl bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--status-red)] outline-none font-medium"
-                >
-                  <option value="24h">Previous 24 Hours</option>
-                  <option value="month">Previous 1 Month</option>
-                  <option value="all">All Transactions</option>
-                </select>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { id: '24h', label: 'Previous 24 Hours' },
+                    { id: 'month', label: 'Previous 1 Month' },
+                    { id: 'all', label: 'All Transactions' }
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setClearType(opt.id)}
+                      className={`w-full p-3.5 rounded-xl border text-left font-medium transition-all ${
+                        clearType === opt.id 
+                          ? 'bg-[var(--status-red)]/10 border-[var(--status-red)] text-[var(--status-red)]' 
+                          : 'bg-[var(--bg-surface-lit)] border-transparent text-[var(--text-main)] hover:border-[var(--text-muted)]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex flex-col gap-3">

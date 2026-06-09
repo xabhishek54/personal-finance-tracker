@@ -1,8 +1,8 @@
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
 import { User, CheckCircle2 } from 'lucide-react';
 
 export default function DebtsTracker() {
-  const transactions = useFinanceStore(state => state.transactions);
+  const transactions = useFilteredTransactions();
   const markAsSettled = useFinanceStore(state => state.markAsSettled);
 
   // Filter only Lend and Borrow transactions

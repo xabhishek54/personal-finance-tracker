@@ -1,4 +1,4 @@
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
 import { Search, Filter, Wallet, Download, ChevronDown, Edit3, Trash2, CheckSquare, Square } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { exportTransactionsToExcel } from '../utils/exportExcel';
@@ -7,7 +7,7 @@ import EditTransactionModal from './EditTransactionModal';
 import DeleteAuthModal from './DeleteAuthModal';
 
 export default function TransactionLog() {
-  const transactions = useFinanceStore(state => state.transactions);
+  const transactions = useFilteredTransactions();
   const deleteTransaction = useFinanceStore(state => state.deleteTransaction);
   const getUniqueMerchants = useFinanceStore(state => state.getUniqueMerchants);
   const requirePasswordForDelete = useFinanceStore(state => state.requirePasswordForDelete);

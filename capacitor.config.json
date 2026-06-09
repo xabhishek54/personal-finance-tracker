@@ -1,0 +1,5 @@
+{
+  "appId": "com.personalfinance.tracker",
+  "appName": "FinanceTracker",
+  "webDir": "dist"
+}

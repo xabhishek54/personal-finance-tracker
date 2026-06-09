@@ -125,20 +125,22 @@ export default function AddTransactionModal({ isOpen, onClose }) {
               placeholder="e.g. Zomato, Salary, Rahul..."
               className="w-full bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
             />
-            {/* Autocomplete Dropdown */}
+            {/* Autocomplete Row */}
             {showAutocomplete && merchants.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-lg z-30 max-h-40 overflow-y-auto">
+              <div className="flex gap-2 overflow-x-auto pb-1 mt-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {merchants.map(m => (
-                  <div 
+                  <button 
                     key={m}
-                    className="px-4 py-2 text-sm hover:bg-[var(--bg-surface-lit)] cursor-pointer"
-                    onClick={() => {
+                    type="button"
+                    className="whitespace-nowrap px-3 py-1.5 text-xs font-medium bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-lg transition-colors border border-[var(--bg-surface-lit)]"
+                    onClick={(e) => {
+                      e.preventDefault();
                       setRecipient(m);
                       setShowAutocomplete(false);
                     }}
                   >
                     {m}
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

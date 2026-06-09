@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ReceiptText, PieChart, Plus, Settings, Wallet, LogOut } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, PieChart, Plus, Settings, Wallet, LogOut, ChevronDown } from 'lucide-react';
 import { useFinanceStore } from './store/useFinanceStore';
 import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
+import { App as CapApp } from '@capacitor/app';
 import Dashboard from './components/Dashboard';
 import TransactionLog from './components/TransactionLog';
 import BudgetAnalytics from './components/BudgetAnalytics';
@@ -12,6 +13,7 @@ import SettingsPage from './components/SettingsPage';
 import AddTransactionModal from './components/AddTransactionModal';
 import OnboardingModal from './components/OnboardingModal';
 import Login from './components/Auth/Login';
+import SyncIndicator from './components/SyncIndicator';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -54,10 +56,42 @@ const PageTitleUpdater = () => {
 };
 
 export default function App() {
-  const { theme } = useFinanceStore();
+  const { theme, workspaces, activeWorkspaceId, switchWorkspace, addWorkspace } = useFinanceStore();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+
+  const activeWorkspace = workspaces?.find(w => w.id === activeWorkspaceId) || { name: 'Personal', id: 'personal' };
+
+  const handleAddWorkspace = () => {
+    const name = prompt("Enter new workspace name (e.g. Business, Trip):");
+    if (name && name.trim()) {
+      addWorkspace(name.trim());
+    }
+    setShowWorkspaceMenu(false);
+  };
 
   useEffect(() => {
+    // Handle Quick Add Deep Links & URL parameters
+    const handleAddParam = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('action') === 'add') {
+        setIsAddModalOpen(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+    
+    handleAddParam();
+
+    try {
+      CapApp.addListener('appUrlOpen', data => {
+        if (data.url.includes('action=add')) {
+          setIsAddModalOpen(true);
+        }
+      });
+    } catch (e) {
+      console.log('Capacitor App plugin not available', e);
+    }
+
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -76,6 +110,7 @@ export default function App() {
   return (
     <AuthProvider>
       <SyncWrapper>
+        <SyncIndicator />
         <Router>
           <PageTitleUpdater />
           <Routes>
@@ -84,10 +119,40 @@ export default function App() {
             <PrivateRoute>
               <div className="flex h-screen overflow-hidden bg-[var(--bg-space)] transition-colors duration-200">
                 {/* Desktop Sidebar Rail */}
-                <aside className="hidden lg:flex flex-col w-20 bg-[var(--bg-surface)] border-r border-[var(--bg-surface-lit)] items-center py-6 gap-8 z-10 shrink-0">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--accent-violet)] to-purple-400 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-[var(--accent-glow)]">
-                    F
+                <aside className="hidden lg:flex flex-col w-20 bg-[var(--bg-surface)] border-r border-[var(--bg-surface-lit)] items-center py-6 gap-8 z-10 shrink-0 relative">
+                  <div className="flex flex-col items-center gap-2">
+                    <button 
+                      onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                      className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--accent-violet)] to-purple-400 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-[var(--accent-glow)] hover:scale-105 active:scale-95 transition-all"
+                      title={`Current Mode: ${activeWorkspace.name}`}
+                    >
+                      {activeWorkspace.name.charAt(0).toUpperCase()}
+                    </button>
                   </div>
+                  
+                  {/* Workspace Dropdown */}
+                  {showWorkspaceMenu && (
+                    <div className="absolute top-16 left-16 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-xl z-50 w-48 py-2 animate-[popIn_150ms_ease-out]">
+                      <div className="px-3 py-1.5 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Modes</div>
+                      {workspaces?.map(w => (
+                        <button 
+                          key={w.id}
+                          onClick={() => { switchWorkspace(w.id); setShowWorkspaceMenu(false); }}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${activeWorkspaceId === w.id ? 'text-[var(--accent-violet)] font-bold bg-[var(--accent-violet)]/10' : 'hover:bg-[var(--bg-surface-lit)]'}`}
+                        >
+                          {w.name}
+                        </button>
+                      ))}
+                      <div className="border-t border-[var(--bg-surface-lit)] mt-2 pt-2">
+                        <button 
+                          onClick={handleAddWorkspace}
+                          className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-[var(--bg-surface-lit)] text-[var(--text-main)]"
+                        >
+                          <Plus size={14} /> New Mode
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   
                   <nav className="flex flex-col gap-4 flex-1">
                     {navItems.map((item) => (
@@ -119,7 +184,41 @@ export default function App() {
 
                 {/* Main Content Area */}
                 <main className="flex-1 overflow-y-auto pb-28 lg:pb-0 page-enter relative">
-                  <div className="max-w-5xl mx-auto p-4 md:p-6 lg:p-8 min-h-full">
+                  {/* Mobile Workspace Switcher */}
+                  <div className="lg:hidden absolute top-4 left-4 z-[90]">
+                    <button 
+                      onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                      className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] shadow-sm text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+                    >
+                      <div className="w-4 h-4 rounded-full bg-[var(--accent-violet)] text-white flex items-center justify-center text-[8px]">{activeWorkspace.name.charAt(0).toUpperCase()}</div>
+                      {activeWorkspace.name}
+                      <ChevronDown size={12} className="text-[var(--text-muted)]" />
+                    </button>
+                    {showWorkspaceMenu && (
+                      <div className="absolute top-full left-0 mt-2 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-xl w-48 py-2 animate-[popIn_150ms_ease-out]">
+                        <div className="px-3 py-1.5 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Modes</div>
+                        {workspaces?.map(w => (
+                          <button 
+                            key={w.id}
+                            onClick={() => { switchWorkspace(w.id); setShowWorkspaceMenu(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${activeWorkspaceId === w.id ? 'text-[var(--accent-violet)] font-bold bg-[var(--accent-violet)]/10' : 'hover:bg-[var(--bg-surface-lit)]'}`}
+                          >
+                            {w.name}
+                          </button>
+                        ))}
+                        <div className="border-t border-[var(--bg-surface-lit)] mt-2 pt-2">
+                          <button 
+                            onClick={handleAddWorkspace}
+                            className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-[var(--bg-surface-lit)]"
+                          >
+                            <Plus size={14} /> New Mode
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="max-w-5xl mx-auto p-4 pt-16 md:p-6 lg:pt-8 lg:p-8 min-h-full">
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/logs" element={<TransactionLog />} />
