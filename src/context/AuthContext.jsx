@@ -15,7 +15,30 @@ export function AuthProvider({ children }) {
   });
   const [loading, setLoading] = useState(() => !localStorage.getItem('finance_user'));
 
-  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [isPinVerified, setIsPinVerified] = useState(() => {
+    const saved = localStorage.getItem('finance_user');
+    if (!saved) return false;
+
+    const pin = localStorage.getItem('finance_user_pin');
+    if (!pin) return true;
+
+    const platforms = useFinanceStore.getState().pinPlatforms || {
+      app: true,
+      mobileWeb: true,
+      desktopWeb: true,
+    };
+
+    let pinRequired = true;
+    const isNative = Capacitor.isNativePlatform();
+    const isMobileWeb = !isNative && window.innerWidth < 768;
+    const isDesktopWeb = !isNative && window.innerWidth >= 768;
+
+    if (isNative && !platforms.app) pinRequired = false;
+    if (isMobileWeb && !platforms.mobileWeb) pinRequired = false;
+    if (isDesktopWeb && !platforms.desktopWeb) pinRequired = false;
+
+    return !pinRequired;
+  });
   const [hasPinSetup, setHasPinSetup] = useState(() => !!localStorage.getItem('finance_user_pin'));
 
   useEffect(() => {
