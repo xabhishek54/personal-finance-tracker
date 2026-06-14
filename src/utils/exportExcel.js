@@ -1,7 +1,10 @@
 import * as XLSX from 'xlsx';
 import { format, parseISO } from 'date-fns';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
-export function exportTransactionsToExcel(transactions, budgets) {
+export async function exportTransactionsToExcel(transactions, budgets) {
   // Sheet 1: All Transactions
   const txData = transactions.map((tx) => ({
     Date: format(parseISO(tx.date), 'yyyy-MM-dd'),
@@ -62,6 +65,30 @@ export function exportTransactionsToExcel(transactions, budgets) {
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Monthly Summary');
   XLSX.utils.book_append_sheet(wb, wsCat, 'Category Breakdown');
 
-  // Download
-  XLSX.writeFile(wb, `Finance_Export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+  const fileName = `Finance_Export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+
+      const savedFile = await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache,
+      });
+
+      await Share.share({
+        title: fileName,
+        text: 'Exported Finance Data',
+        url: savedFile.uri,
+        dialogTitle: 'Save or Share Export',
+      });
+    } catch (err) {
+      console.error('Error exporting file on mobile:', err);
+      alert('Failed to export file. Please try again.');
+    }
+  } else {
+    // Web Download
+    XLSX.writeFile(wb, fileName);
+  }
 }

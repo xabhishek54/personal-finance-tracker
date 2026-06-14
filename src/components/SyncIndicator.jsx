@@ -17,19 +17,32 @@ export default function SyncIndicator() {
       setIsSyncing(false);
     };
 
+    const handleManualSync = () => {
+      setIsOnline(navigator.onLine);
+      if (navigator.onLine) {
+        setIsSyncing(true);
+        setTimeout(() => setIsSyncing(false), 2500);
+      }
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('manual-sync', handleManualSync);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('manual-sync', handleManualSync);
     };
   }, []);
 
   if (isOnline && !isSyncing) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center animate-[popIn_300ms_ease-out]">
+    <div
+      className="fixed left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center animate-[popIn_300ms_ease-out]"
+      style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
+    >
       <div
         className={`px-4 py-2 rounded-full shadow-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md transition-colors ${
           !isOnline

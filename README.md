@@ -27,9 +27,9 @@
 - **🤝 Lend & Borrow Tracking**: Keep a close eye on money you owe or are owed with a dedicated Debts tracker.
 - **📊 Smart Analytics & Budgets**: Visual budget rings and historic spending trends (1 Month, 3 Months, 6 Months, or 1 Year views).
 - **🌙 Instant Dark Mode**: Beautiful, persistent dark and light modes with zero flash-of-white on launch.
-- **🔒 Security**: Built-in authentication, with the ability to require your password before any transaction deletion. Change your password directly from the settings.
+- **🔒 Security**: Built-in authentication, with support for **4-Digit PIN** and **Native Biometrics (Face ID / Touch ID)**. You can even lock transaction deletion behind your password.
+- **📱 Native Mobile Experience**: Available as a native Android APK built using Capacitor, featuring Pull-to-Refresh, custom icons, splash screens, and native share sheets for Excel Export.
 - **📑 Excel Export**: Download perfectly formatted `.xlsx` sheets of your transactions and monthly summaries for your records.
-- **📱 Native Mobile App**: Available as a native Android APK built using Capacitor, featuring custom icons, splash screens, and smooth micro-animations.
 
 ## 🚀 Getting Started
 

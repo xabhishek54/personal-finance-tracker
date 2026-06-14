@@ -4,6 +4,8 @@ import { useState } from 'react';
 import ClearDataModal from './ClearDataModal';
 import SecurityAuthModal from './SecurityAuthModal';
 import ChangePasswordModal from './ChangePasswordModal';
+import PinSetupModal from './Auth/PinSetupModal';
+import { useAuth } from '../context/AuthContext';
 
 export default function SettingsPage() {
   const {
@@ -13,9 +15,12 @@ export default function SettingsPage() {
     setBudgetCycle,
     requirePasswordForDelete,
     setRequirePasswordForDelete,
+    pinPlatforms,
+    setPinPlatforms,
   } = useFinanceStore();
   const { budgets, includeLendBorrow, useGlobalBudget, globalBudgetLimit, budgetCycle } =
     useWorkspaceSettings();
+  const { hasPinSetup } = useAuth();
 
   const [localBudgets, setLocalBudgets] = useState(
     Object.keys(budgets).reduce((acc, cat) => {
@@ -30,6 +35,11 @@ export default function SettingsPage() {
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [showDisableSecurityAuth, setShowDisableSecurityAuth] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [showPinAuth, setShowPinAuth] = useState(false);
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(
+    () => localStorage.getItem('finance_biometric_enabled') === 'true'
+  );
 
   const handleSecurityToggle = (checked) => {
     if (!checked && requirePasswordForDelete) {
@@ -245,8 +255,89 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        {/* App Login Security */}
+        <div className="surface-card p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-2 border-b border-[var(--bg-surface-lit)] pb-4">
+            <h2 className="text-lg font-semibold text-[var(--accent-violet)]">
+              App Login Security
+            </h2>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col">
+              <span className="font-medium text-[var(--text-main)]">PIN Protection</span>
+              <span className="text-xs text-[var(--text-muted)] mt-1">
+                Require a 4-digit PIN when opening the app.
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                if (hasPinSetup) {
+                  setShowPinAuth(true);
+                } else {
+                  setIsPinModalOpen(true);
+                }
+              }}
+              className="px-4 py-2 text-sm font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors whitespace-nowrap shrink-0"
+            >
+              {hasPinSetup ? 'Change / Remove PIN' : 'Setup PIN'}
+            </button>
+          </div>
+
+          {hasPinSetup && (
+            <div className="flex flex-col gap-3 pt-4 border-t border-[var(--bg-surface-lit)] animate-[slideUp_150ms_ease-out]">
+              <span className="font-medium text-[var(--text-main)] text-sm">Require PIN on:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { id: 'app', label: 'Mobile App' },
+                  { id: 'mobileWeb', label: 'Mobile Web' },
+                  { id: 'desktopWeb', label: 'Desktop Web' },
+                ].map((platform) => (
+                  <label
+                    key={platform.id}
+                    className="flex items-center gap-2 p-3 bg-[var(--bg-surface-lit)] rounded-xl cursor-pointer hover:bg-[var(--accent-glow)] transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={pinPlatforms?.[platform.id] ?? true}
+                      onChange={(e) => {
+                        const newPlatforms = { ...pinPlatforms, [platform.id]: e.target.checked };
+                        setPinPlatforms(newPlatforms);
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-[var(--accent-violet)] focus:ring-[var(--accent-violet)]"
+                    />
+                    <span className="text-sm font-medium">{platform.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-[var(--bg-surface-lit)]">
+            <div className="flex flex-col">
+              <span className="font-medium">Fingerprint / Biometric Login</span>
+              <span className="text-xs text-[var(--text-muted)] mt-1">
+                Use your device's biometrics to unlock (Mobile Only).
+              </span>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={isBiometricEnabled}
+                onChange={(e) => {
+                  setIsBiometricEnabled(e.target.checked);
+                  localStorage.setItem('finance_biometric_enabled', e.target.checked);
+                }}
+              />
+              <div className="w-11 h-6 bg-[var(--bg-surface-lit)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent-violet)]"></div>
+            </label>
+          </div>
+        </div>
       </div>
 
+      <PinSetupModal isOpen={isPinModalOpen} onClose={() => setIsPinModalOpen(false)} />
       <ClearDataModal isOpen={isClearModalOpen} onClose={() => setIsClearModalOpen(false)} />
       <ChangePasswordModal
         isOpen={isPasswordModalOpen}
@@ -258,6 +349,13 @@ export default function SettingsPage() {
         onSuccess={() => setRequirePasswordForDelete(false)}
         title="Disable Security Feature"
         message="Please enter your password to disable transaction deletion security."
+      />
+      <SecurityAuthModal
+        isOpen={showPinAuth}
+        onClose={() => setShowPinAuth(false)}
+        onSuccess={() => setIsPinModalOpen(true)}
+        title="Verify Identity"
+        message="Please enter your password to change or remove your PIN."
       />
     </div>
   );

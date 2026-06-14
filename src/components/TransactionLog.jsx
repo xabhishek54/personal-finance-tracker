@@ -305,7 +305,11 @@ export default function TransactionLog() {
               <div
                 key={tx.id}
                 onDoubleClick={() => setEditingTx(tx)}
-                onClick={(e) => handleToggleSelect(e, tx.id)}
+                onClick={(e) => {
+                  if (selectedTxIds.size > 0) {
+                    handleToggleSelect(e, tx.id);
+                  }
+                }}
                 className={`p-4 flex items-center justify-between hover:bg-[var(--bg-surface-lit)] transition-colors cursor-pointer group select-none ${selectedTxIds.has(tx.id) ? 'bg-[var(--accent-violet)]/5' : ''}`}
                 title="Click to select, double click to edit"
               >
@@ -366,7 +370,7 @@ export default function TransactionLog() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex flex-col gap-1 transition-opacity">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

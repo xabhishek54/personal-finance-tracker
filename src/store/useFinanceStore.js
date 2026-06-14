@@ -42,6 +42,7 @@ export const useFinanceStore = create(
       requirePasswordForDelete: false,
       isDeleteModeUnlocked: false,
       isInitialized: false,
+      pinPlatforms: { app: true, mobileWeb: true, desktopWeb: true },
 
       workspaces: [{ id: 'personal', name: 'Personal' }],
       activeWorkspaceId: 'personal',
@@ -142,6 +143,14 @@ export const useFinanceStore = create(
         }
       },
 
+      setPinPlatforms: async (platforms) => {
+        set({ pinPlatforms: platforms });
+        const uid = auth.currentUser?.uid;
+        if (uid) {
+          await updateDoc(doc(db, 'users', uid), { pinPlatforms: platforms });
+        }
+      },
+
       setIncludeLendBorrow: async (val) => {
         const { activeWorkspaceId, workspaceSettings } = get();
         const newSettings = {
@@ -214,6 +223,7 @@ export const useFinanceStore = create(
           if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.theme) set({ theme: data.theme });
+            if (data.pinPlatforms) set({ pinPlatforms: data.pinPlatforms });
             if (data.hasUnreadNotifications !== undefined)
               set({ hasUnreadNotifications: data.hasUnreadNotifications });
             if (data.requirePasswordForDelete !== undefined)
@@ -485,6 +495,7 @@ export const useFinanceStore = create(
         workspaces: state.workspaces,
         activeWorkspaceId: state.activeWorkspaceId,
         workspaceSettings: state.workspaceSettings,
+        pinPlatforms: state.pinPlatforms,
       }),
     }
   )
