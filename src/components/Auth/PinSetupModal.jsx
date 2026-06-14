@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Lock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -94,9 +95,11 @@ export default function PinSetupModal({ isOpen, onClose }) {
     </div>
   );
 
-  return (
+  if (!isOpen) return null;
+
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-[popIn_200ms_ease-out]">
-      <div className="surface-card w-full max-w-sm flex flex-col items-center p-6 relative">
+      <div className="surface-card w-full max-w-sm flex flex-col items-center p-6 relative shadow-2xl">
         <button
           onClick={() => {
             onClose();
@@ -123,7 +126,7 @@ export default function PinSetupModal({ isOpen, onClose }) {
             <h2 className="text-xl font-bold text-[var(--text-main)] mb-1">
               {step === 1 ? 'Create New PIN' : 'Confirm PIN'}
             </h2>
-            <p className="text-[var(--text-muted)] text-sm mb-6">
+            <p className="text-[var(--text-muted)] text-sm mb-6 text-center">
               {step === 1 ? 'Enter a 4-digit PIN' : 'Re-enter your PIN to confirm'}
             </p>
 
@@ -173,6 +176,7 @@ export default function PinSetupModal({ isOpen, onClose }) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
