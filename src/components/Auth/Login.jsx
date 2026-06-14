@@ -8,6 +8,7 @@ import {
   setPersistence,
   browserSessionPersistence,
   browserLocalPersistence,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,6 +21,23 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first.');
+      return;
+    }
+    try {
+      setLoading(true);
+      await sendPasswordResetEmail(auth, email);
+      setError('');
+      alert('Password reset email sent! Check your inbox.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -120,6 +138,15 @@ export default function Login() {
                 className="w-full bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none transition-colors"
               />
             </div>
+            {!isRegistering && (
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                className="text-xs text-[var(--accent-violet)] font-bold self-end hover:underline mt-1"
+              >
+                Forgot Password?
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 mt-1 px-1">
