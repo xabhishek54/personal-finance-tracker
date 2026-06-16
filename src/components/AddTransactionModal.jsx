@@ -145,6 +145,17 @@ export default function AddTransactionModal({ isOpen, onClose }) {
                 }}
                 onFocus={() => setShowAutocomplete(true)}
                 onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                onKeyDown={(e) => {
+                  if (
+                    (e.key === 'Tab' || e.key === 'Enter') &&
+                    showAutocomplete &&
+                    merchants.length > 0
+                  ) {
+                    e.preventDefault();
+                    setRecipient(merchants[0]);
+                    setShowAutocomplete(false);
+                  }
+                }}
                 placeholder="e.g. Zomato, Salary, Rahul..."
                 className="w-full bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
               />
@@ -156,7 +167,7 @@ export default function AddTransactionModal({ isOpen, onClose }) {
                       key={m}
                       type="button"
                       className="whitespace-nowrap px-3 py-1.5 text-xs font-medium bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-lg transition-colors border border-[var(--bg-surface-lit)]"
-                      onClick={(e) => {
+                      onMouseDown={(e) => {
                         e.preventDefault();
                         setRecipient(m);
                         setShowAutocomplete(false);

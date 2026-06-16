@@ -6,6 +6,7 @@ import {
   NavLink,
   Navigate,
   useLocation,
+  useNavigate,
 } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -66,6 +67,8 @@ const SyncWrapper = ({ children }) => {
 
 const PageTitleUpdater = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
   useEffect(() => {
     const titles = {
       '/': 'Dashboard | Finance Tracker',
@@ -77,6 +80,54 @@ const PageTitleUpdater = () => {
     };
     document.title = titles[location.pathname] || 'Finance Tracker';
   }, [location.pathname]);
+
+  useEffect(() => {
+    let lastTimeBackPress = 0;
+    const timePeriodToExit = 2000;
+    let toastTimeout;
+
+    const setupBackButton = async () => {
+      try {
+        await CapApp.addListener('backButton', () => {
+          const currentPath = window.location.pathname;
+          if (currentPath !== '/' && currentPath !== '/login') {
+            navigate('/');
+          } else if (currentPath === '/') {
+            if (new Date().getTime() - lastTimeBackPress < timePeriodToExit) {
+              CapApp.exitApp();
+            } else {
+              lastTimeBackPress = new Date().getTime();
+              const toast = document.createElement('div');
+              toast.innerText = 'Tap again to exit';
+              toast.className =
+                'fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[var(--text-main)] text-[var(--bg-surface)] px-4 py-2 rounded-full text-sm font-medium z-[9999] transition-opacity duration-300 shadow-xl';
+              document.body.appendChild(toast);
+
+              clearTimeout(toastTimeout);
+              toastTimeout = setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                  if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                  }
+                }, 300);
+              }, 2000);
+            }
+          }
+        });
+      } catch (e) {
+        console.log('Capacitor App plugin not available for back button', e);
+      }
+    };
+
+    setupBackButton();
+
+    return () => {
+      CapApp.removeAllListeners('backButton');
+      clearTimeout(toastTimeout);
+    };
+  }, [navigate]);
+
   return null;
 };
 
@@ -351,7 +402,7 @@ export default function App() {
                           )}
                         </div>
 
-                        <div className="max-w-5xl mx-auto p-4 pt-16 md:p-6 lg:pt-8 lg:p-8 min-h-full">
+                        <div className="max-w-5xl mx-auto p-4 pt-16 pb-24 md:p-6 lg:pt-8 lg:p-8 lg:pb-8 min-h-full">
                           <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/logs" element={<TransactionLog />} />

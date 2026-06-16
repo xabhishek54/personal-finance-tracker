@@ -69,7 +69,11 @@ export default function Dashboard() {
   const totalBudget = useGlobalBudget
     ? globalBudgetLimit
     : Object.values(budgets || {}).reduce((sum, b) => sum + (b.limit || 0), 0);
-  const totalBudgetUsed = Object.values(budgets || {}).reduce((sum, b) => sum + (b.spent || 0), 0);
+  const totalBudgetUsed = useGlobalBudget
+    ? totalExpense
+    : cycleTxs
+        .filter((t) => t.type === 'Expense' && budgets?.[t.category])
+        .reduce((sum, t) => sum + t.amount, 0);
   const budgetPercentage = totalBudget > 0 ? (totalBudgetUsed / totalBudget) * 100 : 0;
 
   const remainingBudget = Math.max(totalBudget - totalBudgetUsed, 0);
