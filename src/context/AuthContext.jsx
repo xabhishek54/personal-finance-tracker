@@ -5,6 +5,7 @@ import LoadingScreen from '../components/LoadingScreen';
 
 import { Capacitor } from '@capacitor/core';
 import { useFinanceStore } from '../store/useFinanceStore';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
 const AuthContext = createContext();
 
@@ -42,7 +43,7 @@ export function AuthProvider({ children }) {
   const [hasPinSetup, setHasPinSetup] = useState(() => !!localStorage.getItem('finance_user_pin'));
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         localStorage.setItem('finance_user', JSON.stringify({ uid: user.uid, email: user.email }));
         // Check if PIN is required
@@ -63,6 +64,25 @@ export function AuthProvider({ children }) {
           if (isNative && !platforms.app) pinRequired = false;
           if (isMobileWeb && !platforms.mobileWeb) pinRequired = false;
           if (isDesktopWeb && !platforms.desktopWeb) pinRequired = false;
+
+          if (
+            pinRequired &&
+            isNative &&
+            localStorage.getItem('finance_biometric_enabled') === 'true'
+          ) {
+            try {
+              const result = await NativeBiometric.verifyIdentity({
+                reason: 'For easy login',
+                title: 'Unlock Finance Tracker',
+                subtitle: 'Use your biometric to unlock',
+              });
+              if (result.verified) {
+                pinRequired = false;
+              }
+            } catch (err) {
+              console.log('Biometric failed or cancelled', err);
+            }
+          }
         }
 
         setIsPinVerified(!pinRequired);
@@ -71,8 +91,7 @@ export function AuthProvider({ children }) {
         setIsPinVerified(false);
       }
       setCurrentUser(user);
-      // Slight delay to allow animations and local data to init
-      setTimeout(() => setLoading(false), 500);
+      setLoading(false);
     });
 
     return unsubscribe;

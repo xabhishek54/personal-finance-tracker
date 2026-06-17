@@ -55,12 +55,7 @@ export default function PinLoginScreen() {
     }
   };
 
-  useEffect(() => {
-    if (isBiometricEnabled && Capacitor.isNativePlatform()) {
-      handleBiometricAuth();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Biometric is handled at the AuthContext level during app load
 
   useEffect(() => {
     if (isForgotPin || isSetupOpen) return;
