@@ -5,6 +5,7 @@ export default function CountUp({ value, duration = 500, formatter = (v) => v, c
 
   useEffect(() => {
     let startTimestamp = null;
+    let animationFrameId = null;
     const startValue = displayValue;
     const endValue = value;
 
@@ -20,13 +21,19 @@ export default function CountUp({ value, duration = 500, formatter = (v) => v, c
       setDisplayValue(startValue + (endValue - startValue) * easeProgress);
 
       if (progress < 1) {
-        window.requestAnimationFrame(step);
+        animationFrameId = window.requestAnimationFrame(step);
       } else {
         setDisplayValue(endValue);
       }
     };
 
-    window.requestAnimationFrame(step);
+    animationFrameId = window.requestAnimationFrame(step);
+
+    return () => {
+      if (animationFrameId) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [value, duration]);
 
   return <span className={className}>{formatter(displayValue)}</span>;
