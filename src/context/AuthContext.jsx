@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
     const saved = localStorage.getItem('finance_user');
     return saved ? JSON.parse(saved) : null;
   });
-  const [loading, setLoading] = useState(() => !localStorage.getItem('finance_user'));
+  const [loading, setLoading] = useState(true);
 
   const [isPinVerified, setIsPinVerified] = useState(() => {
     const saved = localStorage.getItem('finance_user');
