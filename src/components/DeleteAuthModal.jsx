@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useFinanceStore } from '../store/useFinanceStore';
-import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { supabase } from '../supabase';
 import { Lock, X } from 'lucide-react';
 
 export default function DeleteAuthModal({ isOpen, onClose, transaction, onConfirm }) {
@@ -24,12 +24,15 @@ export default function DeleteAuthModal({ isOpen, onClose, transaction, onConfir
 
     setIsDeleting(true);
     try {
-      const credential = EmailAuthProvider.credential(currentUser.email, password);
-      await reauthenticateWithCredential(currentUser, credential);
+      if (currentUser?.email && navigator.onLine) {
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password,
+        });
+        if (verifyErr) throw verifyErr;
+      }
 
-      // Unlock session
       setDeleteModeUnlocked(true);
-
       await onConfirm(transaction.ids);
       onClose();
     } catch (err) {

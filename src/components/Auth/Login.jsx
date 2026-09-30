@@ -1,15 +1,6 @@
 import { useState } from 'react';
 import { Mail, Lock, LogIn, UserPlus, User } from 'lucide-react';
-import { auth } from '../../firebase';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  updateProfile,
-  setPersistence,
-  browserSessionPersistence,
-  browserLocalPersistence,
-  sendPasswordResetEmail,
-} from 'firebase/auth';
+import { supabase } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -17,8 +8,8 @@ export default function Login() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -29,11 +20,12 @@ export default function Login() {
     }
     try {
       setLoading(true);
-      await sendPasswordResetEmail(auth, email);
       setError('');
-      alert('Password reset email sent! Check your inbox.');
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email);
+      if (resetErr) throw resetErr;
+      setSuccessMsg('Password reset email sent! Check your inbox.');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to send password reset email.');
     } finally {
       setLoading(false);
     }
@@ -42,20 +34,48 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-
       if (isRegistering) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, { displayName: name });
+        const { data, error: signUpErr } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: name },
+          },
+        });
+        if (signUpErr) throw signUpErr;
+
+        if (data?.user) {
+          const u = {
+            uid: data.user.id,
+            email: data.user.email,
+            displayName: name,
+          };
+          localStorage.setItem('finance_user', JSON.stringify(u));
+          navigate('/');
+        }
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInErr) throw signInErr;
+
+        if (data?.user) {
+          const u = {
+            uid: data.user.id,
+            email: data.user.email,
+            displayName: data.user.user_metadata?.full_name || '',
+          };
+          localStorage.setItem('finance_user', JSON.stringify(u));
+          navigate('/');
+        }
       }
-      navigate('/');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -70,8 +90,8 @@ export default function Login() {
           </h1>
           <p className="text-[var(--text-muted)] text-sm mt-2">
             {isRegistering
-              ? 'Sign up to start tracking your finances securely.'
-              : 'Log in to access your personal dashboard.'}
+              ? 'Sign up to sync your personal finance tracker.'
+              : 'Log in to access your offline & cloud financial dashboard.'}
           </p>
         </div>
 
@@ -79,6 +99,12 @@ export default function Login() {
           {error && (
             <div className="bg-[var(--status-red)]/10 text-[var(--status-red)] p-3 rounded-xl text-sm font-medium border border-[var(--status-red)]/20 animate-[popIn_200ms_ease-out]">
               {error}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="bg-emerald-500/10 text-emerald-500 p-3 rounded-xl text-sm font-medium border border-emerald-500/20 animate-[popIn_200ms_ease-out]">
+              {successMsg}
             </div>
           )}
 
@@ -149,19 +175,6 @@ export default function Login() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 mt-1 px-1">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-[var(--accent-violet)] focus:ring-[var(--accent-violet)] cursor-pointer"
-            />
-            <label htmlFor="rememberMe" className="text-sm text-[var(--text-muted)] cursor-pointer">
-              Remember me
-            </label>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -188,6 +201,7 @@ export default function Login() {
             onClick={() => {
               setIsRegistering(!isRegistering);
               setError('');
+              setSuccessMsg('');
             }}
             className="text-[var(--accent-violet)] font-bold hover:underline"
           >

@@ -1,8 +1,0 @@
-The bugs rn:
-i) the icon of the app has a white background, you need to remove the background, and apply everywhere
-2) In mobile app, the mobile navigations like back is not so good, follow the standars that others use, rn there i no option to quit the app, in other app, clicking back once, will lead them to dashboard(main page) then again black that is double black clicked quits the app( Showing tap again to exit), follow what other applications do and proceed that way
-3) for some reason the app isn't as smooth as web
-4)the merchant/source suggestions dont work on clicking, like it shows, but doesn't work on clicking, it must paste that right.
-5) also integrate TAB of desktop properly, like in transaction addition menu,
-6) also for some reason total mothly budged which is in dashboard and show different number like 370 remaining to spend instead of 220 or something, check onto that if there is any mistake
-7)also in mobile app i cant scroll much down, like in dashboard when i scroll down, then i can just see cutout recent transaction, same thing in each tabs of the app, may be because in mobile the navigation is down side, so it overlaps, check onto that and fix it

@@ -1,21 +1,8 @@
 import * as React from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { subMonths, isSameMonth, parseISO } from 'date-fns';
-import { db, auth } from '../firebase';
-import {
-  collection,
-  doc,
-  setDoc,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  updateDoc,
-  getDoc,
-  deleteDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { subMonths, isSameMonth, parseISO, subHours } from 'date-fns';
+import { supabase, getSupabaseConfig } from '../supabase';
 
 const defaultSettings = {
   budgets: {
@@ -29,6 +16,44 @@ const defaultSettings = {
   globalBudgetLimit: 50000,
   budgetCycle: '1 month',
   includeLendBorrow: false,
+};
+
+// Recalculate spent budgets for all workspaces based on transactions
+const recalculateBudgets = (transactions, workspaceSettings) => {
+  const newWorkspaceSettings = JSON.parse(JSON.stringify(workspaceSettings || {}));
+  const now = new Date();
+
+  Object.keys(newWorkspaceSettings).forEach((wId) => {
+    const wSettings = newWorkspaceSettings[wId];
+    if (!wSettings.budgets) return;
+
+    Object.keys(wSettings.budgets).forEach((k) => (wSettings.budgets[k].spent = 0));
+    const cycle = wSettings.budgetCycle || '1 month';
+
+    const workspaceTxs = transactions.filter((t) => (t.workspaceId || 'personal') === wId);
+
+    workspaceTxs.forEach((t) => {
+      if (t.type === 'Expense' && wSettings.budgets[t.category]) {
+        const tDate = parseISO(t.date);
+        let include = true;
+
+        if (cycle === '1 month') {
+          include = tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+        } else if (cycle === '2 months') {
+          const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          include = tDate >= twoMonthsAgo;
+        } else if (cycle === '1 year') {
+          include = tDate.getFullYear() === now.getFullYear();
+        }
+
+        if (include) {
+          wSettings.budgets[t.category].spent += Number(t.amount);
+        }
+      }
+    });
+  });
+
+  return newWorkspaceSettings;
 };
 
 export const useFinanceStore = create(
@@ -51,6 +76,27 @@ export const useFinanceStore = create(
         personal: JSON.parse(JSON.stringify(defaultSettings)),
       },
 
+      // Sync & Offline State
+      autoSyncEnabled: true,
+      lastSyncedAt: null,
+      isSyncing: false,
+      syncError: null,
+      pendingSyncCount: 0,
+
+      setAutoSyncEnabled: (enabled) => {
+        set({ autoSyncEnabled: enabled });
+      },
+
+      // Offline-first mutation trigger to optionally auto-sync in background
+      triggerAutoSync: () => {
+        const state = get();
+        if (state.autoSyncEnabled && navigator.onLine) {
+          setTimeout(() => {
+            get().syncWithSupabase();
+          }, 800);
+        }
+      },
+
       addWorkspace: async (name) => {
         const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
         const newWorkspaces = [...get().workspaces, { id, name }];
@@ -59,27 +105,22 @@ export const useFinanceStore = create(
           [id]: JSON.parse(JSON.stringify(defaultSettings)),
         };
 
-        set({ workspaces: newWorkspaces, activeWorkspaceId: id, workspaceSettings: newSettings });
+        set((state) => ({
+          workspaces: newWorkspaces,
+          activeWorkspaceId: id,
+          workspaceSettings: newSettings,
+          pendingSyncCount: state.pendingSyncCount + 1,
+        }));
 
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), {
-            workspaces: newWorkspaces,
-            activeWorkspaceId: id,
-            workspaceSettings: newSettings,
-          });
-        }
+        get().triggerAutoSync();
       },
 
       renameWorkspace: async (id, newName) => {
         const newWorkspaces = get().workspaces.map((w) =>
           w.id === id ? { ...w, name: newName } : w
         );
-        set({ workspaces: newWorkspaces });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { workspaces: newWorkspaces });
-        }
+        set((state) => ({ workspaces: newWorkspaces, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
       deleteWorkspace: async (id) => {
@@ -91,93 +132,62 @@ export const useFinanceStore = create(
         delete newSettings[id];
 
         const newActiveId = activeWorkspaceId === id ? newWorkspaces[0].id : activeWorkspaceId;
+        const newTransactions = transactions.filter((t) => (t.workspaceId || 'personal') !== id);
 
-        set({
+        set((state) => ({
           workspaces: newWorkspaces,
           workspaceSettings: newSettings,
           activeWorkspaceId: newActiveId,
-        });
+          transactions: newTransactions,
+          pendingSyncCount: state.pendingSyncCount + 1,
+        }));
 
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          // Delete transactions from firestore
-          const txsToDelete = transactions.filter((t) => (t.workspaceId || 'personal') === id);
-          if (txsToDelete.length > 0) {
-            const batch = writeBatch(db);
-            txsToDelete.forEach((tx) => {
-              batch.delete(doc(db, 'users', uid, 'transactions', tx.id));
-            });
-            await batch.commit();
-          }
-
-          await updateDoc(doc(db, 'users', uid), {
-            workspaces: newWorkspaces,
-            workspaceSettings: newSettings,
-            activeWorkspaceId: newActiveId,
-          });
-        }
+        get().triggerAutoSync();
       },
 
-      switchWorkspace: async (id) => {
+      switchWorkspace: (id) => {
         set({ activeWorkspaceId: id });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { activeWorkspaceId: id });
-        }
+        get().triggerAutoSync();
       },
 
-      completeOnboarding: async () => {
-        set({ hasCompletedOnboarding: true });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { hasCompletedOnboarding: true });
-        }
+      completeOnboarding: () => {
+        set((state) => ({ hasCompletedOnboarding: true, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
       toggleTheme: () => {
         const newTheme = get().theme === 'dark' ? 'light' : 'dark';
-        set({ theme: newTheme });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          updateDoc(doc(db, 'users', uid), { theme: newTheme });
-        }
+        set((state) => ({ theme: newTheme, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
-      setPinPlatforms: async (platforms) => {
-        set({ pinPlatforms: platforms });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { pinPlatforms: platforms });
-        }
+      setPinPlatforms: (platforms) => {
+        set((state) => ({ pinPlatforms: platforms, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
-      setIncludeLendBorrow: async (val) => {
+      setIncludeLendBorrow: (val) => {
         const { activeWorkspaceId, workspaceSettings } = get();
         const newSettings = {
           ...workspaceSettings,
           [activeWorkspaceId]: { ...workspaceSettings[activeWorkspaceId], includeLendBorrow: val },
         };
-        set({ workspaceSettings: newSettings });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
-        }
+        set((state) => ({ workspaceSettings: newSettings, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
-      setBudgetCycle: async (cycle) => {
-        const { activeWorkspaceId, workspaceSettings } = get();
+      setBudgetCycle: (cycle) => {
+        const { activeWorkspaceId, workspaceSettings, transactions } = get();
         const newSettings = {
           ...workspaceSettings,
           [activeWorkspaceId]: { ...workspaceSettings[activeWorkspaceId], budgetCycle: cycle },
         };
-        set({ workspaceSettings: newSettings });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
-        }
+        const updatedWorkspaceSettings = recalculateBudgets(transactions, newSettings);
+        set((state) => ({ workspaceSettings: updatedWorkspaceSettings, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
-      setGlobalBudgetOptions: async (useGlobal, limit) => {
+      setGlobalBudgetOptions: (useGlobal, limit) => {
         const { activeWorkspaceId, workspaceSettings } = get();
         const newSettings = {
           ...workspaceSettings,
@@ -187,229 +197,187 @@ export const useFinanceStore = create(
             globalBudgetLimit: limit,
           },
         };
-        set({ workspaceSettings: newSettings });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
-        }
+        set((state) => ({ workspaceSettings: newSettings, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
-      updateBudget: async (category, limit) => {
+      updateBudget: (category, limit) => {
         const { activeWorkspaceId, workspaceSettings } = get();
-        const activeSettings = workspaceSettings[activeWorkspaceId];
+        const activeSettings = workspaceSettings[activeWorkspaceId] || defaultSettings;
         const newSettings = {
           ...workspaceSettings,
           [activeWorkspaceId]: {
             ...activeSettings,
             budgets: {
               ...activeSettings.budgets,
-              [category]: { ...activeSettings.budgets[category], limit },
+              [category]: { ...(activeSettings.budgets?.[category] || { spent: 0 }), limit },
             },
           },
         };
-        set({ workspaceSettings: newSettings });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { workspaceSettings: newSettings });
-        }
+        set((state) => ({ workspaceSettings: newSettings, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
-      initializeUserSync: (uid) => {
-        if (get().isInitialized) return;
+      initializeUserSync: async (userId) => {
         set({ isInitialized: true });
-
-        const userDocRef = doc(db, 'users', uid);
-        const unsubUser = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.theme) set({ theme: data.theme });
-            if (data.pinPlatforms) set({ pinPlatforms: data.pinPlatforms });
-            if (data.hasUnreadNotifications !== undefined)
-              set({ hasUnreadNotifications: data.hasUnreadNotifications });
-            if (data.requirePasswordForDelete !== undefined)
-              set({ requirePasswordForDelete: data.requirePasswordForDelete });
-            if (data.workspaces) set({ workspaces: data.workspaces });
-            if (data.activeWorkspaceId) set({ activeWorkspaceId: data.activeWorkspaceId });
-
-            if (data.workspaceSettings) {
-              set({ workspaceSettings: data.workspaceSettings });
-            } else if (data.budgets) {
-              // Migration from v1 to v2 (per-workspace settings)
-              set({
-                workspaceSettings: {
-                  personal: {
-                    budgets: data.budgets,
-                    useGlobalBudget: data.useGlobalBudget ?? false,
-                    globalBudgetLimit: data.globalBudgetLimit ?? 50000,
-                    budgetCycle: data.budgetCycle ?? '1 month',
-                    includeLendBorrow: data.includeLendBorrow ?? false,
-                  },
-                },
-              });
-            }
-
-            if (data.hasCompletedOnboarding !== undefined) {
-              set({ hasCompletedOnboarding: data.hasCompletedOnboarding });
-            } else {
-              set({ hasCompletedOnboarding: true });
-            }
-          } else {
-            set({
-              hasCompletedOnboarding: false,
-              hasUnreadNotifications: true,
-              requirePasswordForDelete: false,
-            });
-            setDoc(userDocRef, {
-              theme: get().theme,
-              hasCompletedOnboarding: false,
-              hasUnreadNotifications: true,
-              requirePasswordForDelete: false,
-              workspaces: get().workspaces,
-              activeWorkspaceId: get().activeWorkspaceId,
-              workspaceSettings: get().workspaceSettings,
-            });
-          }
-        });
-
-        const txQuery = query(
-          collection(db, 'users', uid, 'transactions'),
-          orderBy('date', 'desc')
-        );
-        const unsubTx = onSnapshot(txQuery, (snapshot) => {
-          const txs = snapshot.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
-            .filter((t) => typeof t.date === 'string');
-          set({ transactions: txs });
-
-          const { workspaceSettings } = get();
-          const newWorkspaceSettings = JSON.parse(JSON.stringify(workspaceSettings));
-          const now = new Date();
-
-          // Recalculate spent budgets for all workspaces
-          Object.keys(newWorkspaceSettings).forEach((wId) => {
-            const wSettings = newWorkspaceSettings[wId];
-            if (!wSettings.budgets) return;
-
-            Object.keys(wSettings.budgets).forEach((k) => (wSettings.budgets[k].spent = 0));
-            const cycle = wSettings.budgetCycle || '1 month';
-
-            const workspaceTxs = txs.filter((t) => (t.workspaceId || 'personal') === wId);
-
-            workspaceTxs.forEach((t) => {
-              if (t.type === 'Expense' && wSettings.budgets[t.category]) {
-                const tDate = parseISO(t.date);
-                let include = true;
-
-                if (cycle === '1 month') {
-                  include =
-                    tDate.getMonth() === now.getMonth() &&
-                    tDate.getFullYear() === now.getFullYear();
-                } else if (cycle === '2 months') {
-                  const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                  include = tDate >= twoMonthsAgo;
-                } else if (cycle === '1 year') {
-                  include = tDate.getFullYear() === now.getFullYear();
-                }
-
-                if (include) {
-                  wSettings.budgets[t.category].spent += Number(t.amount);
-                }
-              }
-            });
-          });
-
-          set({ workspaceSettings: newWorkspaceSettings });
-        });
-
-        return () => {
-          if (unsubUser) unsubUser();
-          if (unsubTx) unsubTx();
-          set({ isInitialized: false });
-        };
+        // Trigger sync with Supabase when initializing
+        await get().syncWithSupabase();
       },
 
-      markNotificationsRead: async () => {
-        set({ hasUnreadNotifications: false });
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { hasUnreadNotifications: false });
-        }
+      markNotificationsRead: () => {
+        set((state) => ({ hasUnreadNotifications: false, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
       },
 
-      setRequirePasswordForDelete: async (requirePw) => {
-        set({ requirePasswordForDelete: requirePw });
-        if (requirePw) {
-          set({ isDeleteModeUnlocked: false });
-        }
-        const uid = auth.currentUser?.uid;
-        if (uid) {
-          await updateDoc(doc(db, 'users', uid), { requirePasswordForDelete: requirePw });
-        }
+      setRequirePasswordForDelete: (requirePw) => {
+        set((state) => ({
+          requirePasswordForDelete: requirePw,
+          isDeleteModeUnlocked: requirePw ? false : state.isDeleteModeUnlocked,
+          pendingSyncCount: state.pendingSyncCount + 1,
+        }));
+        get().triggerAutoSync();
       },
 
       setDeleteModeUnlocked: (unlocked) => {
         set({ isDeleteModeUnlocked: unlocked });
       },
 
-      addTransaction: async (tx) => {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
-
+      addTransaction: (tx) => {
+        const id = tx.id || `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const nowIso = new Date().toISOString();
         const newTx = {
+          id,
           ...tx,
-          settled: false,
-          createdAt: new Date().toISOString(),
-          workspaceId: get().activeWorkspaceId,
+          settled: tx.settled ?? false,
+          createdAt: tx.createdAt || nowIso,
+          updatedAt: nowIso,
+          workspaceId: tx.workspaceId || get().activeWorkspaceId || 'personal',
         };
-        await addDoc(collection(db, 'users', uid, 'transactions'), newTx);
+
+        const updatedTransactions = [newTx, ...get().transactions];
+        const updatedSettings = recalculateBudgets(updatedTransactions, get().workspaceSettings);
+
+        set((state) => ({
+          transactions: updatedTransactions,
+          workspaceSettings: updatedSettings,
+          pendingSyncCount: state.pendingSyncCount + 1,
+        }));
+
+        get().triggerAutoSync();
       },
 
-      updateTransaction: async (id, updatedTx) => {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
-        await updateDoc(doc(db, 'users', uid, 'transactions', id), updatedTx);
+      updateTransaction: (id, updatedTx) => {
+        const nowIso = new Date().toISOString();
+        const updatedTransactions = get().transactions.map((t) =>
+          t.id === id ? { ...t, ...updatedTx, updatedAt: nowIso } : t
+        );
+        const updatedSettings = recalculateBudgets(updatedTransactions, get().workspaceSettings);
+
+        set((state) => ({
+          transactions: updatedTransactions,
+          workspaceSettings: updatedSettings,
+          pendingSyncCount: state.pendingSyncCount + 1,
+        }));
+
+        get().triggerAutoSync();
       },
 
-      deleteTransaction: async (id) => {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
-        await deleteDoc(doc(db, 'users', uid, 'transactions', id));
+      deleteTransaction: (id) => {
+        const updatedTransactions = get().transactions.filter((t) => t.id !== id);
+        const updatedSettings = recalculateBudgets(updatedTransactions, get().workspaceSettings);
+
+        set((state) => ({
+          transactions: updatedTransactions,
+          workspaceSettings: updatedSettings,
+          pendingSyncCount: state.pendingSyncCount + 1,
+        }));
+
+        // If online, also delete from Supabase in background
+        if (navigator.onLine) {
+          supabase.auth.getUser().then(({ data }) => {
+            if (data?.user?.id) {
+              supabase.from('transactions').delete().eq('id', id).eq('user_id', data.user.id).then();
+            }
+          });
+        }
+
+        get().triggerAutoSync();
       },
 
-      moveTransactionsToWorkspace: async (txIds, newWorkspaceId) => {
-        const uid = auth.currentUser?.uid;
-        if (!uid || !txIds.length) return;
+      clearLocalData: async (clearType) => {
+        const now = new Date();
+        let remaining = [];
+        let deletedIds = [];
 
-        const batch = writeBatch(db);
-        txIds.forEach((id) => {
-          batch.update(doc(db, 'users', uid, 'transactions', id), { workspaceId: newWorkspaceId });
-        });
-        await batch.commit();
+        if (clearType === 'all') {
+          deletedIds = get().transactions.map((t) => t.id);
+          remaining = [];
+        } else if (clearType === '24h') {
+          const cutoff = subHours(now, 24);
+          get().transactions.forEach((t) => {
+            if (parseISO(t.date) >= cutoff) deletedIds.push(t.id);
+            else remaining.push(t);
+          });
+        } else if (clearType === 'month') {
+          const cutoff = subMonths(now, 1);
+          get().transactions.forEach((t) => {
+            if (parseISO(t.date) >= cutoff) deletedIds.push(t.id);
+            else remaining.push(t);
+          });
+        }
+
+        const updatedSettings = recalculateBudgets(remaining, get().workspaceSettings);
+        set((state) => ({
+          transactions: remaining,
+          workspaceSettings: updatedSettings,
+          pendingSyncCount: state.pendingSyncCount + deletedIds.length,
+        }));
+
+        if (navigator.onLine && deletedIds.length > 0) {
+          const { data } = await supabase.auth.getUser();
+          if (data?.user?.id) {
+            await supabase.from('transactions').delete().in('id', deletedIds).eq('user_id', data.user.id);
+          }
+        }
+
+        get().triggerAutoSync();
       },
 
-      markAsSettled: async (id) => {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
+      moveTransactionsToWorkspace: (txIds, newWorkspaceId) => {
+        const nowIso = new Date().toISOString();
+        const updatedTransactions = get().transactions.map((t) =>
+          txIds.includes(t.id) ? { ...t, workspaceId: newWorkspaceId, updatedAt: nowIso } : t
+        );
+        const updatedSettings = recalculateBudgets(updatedTransactions, get().workspaceSettings);
 
+        set((state) => ({
+          transactions: updatedTransactions,
+          workspaceSettings: updatedSettings,
+          pendingSyncCount: state.pendingSyncCount + txIds.length,
+        }));
+
+        get().triggerAutoSync();
+      },
+
+      markAsSettled: (id) => {
         const tx = get().transactions.find((t) => t.id === id);
         if (!tx || tx.settled) return;
 
-        await updateDoc(doc(db, 'users', uid, 'transactions', id), { settled: true });
+        get().updateTransaction(id, { settled: true });
 
         const counterTx = {
           amount: tx.amount,
           type: tx.type === 'Lend' ? 'Income' : 'Expense',
           category: 'Lend / Borrow',
-          recipient: `Settlement: ${tx.recipient}`,
+          recipient: `Settlement: ${tx.recipient || ''}`,
           method: tx.method,
           note: `Settled ${tx.type === 'Lend' ? 'Lent' : 'Borrowed'} money`,
           date: new Date().toISOString(),
           settled: true,
-          createdAt: new Date().toISOString(),
           workspaceId: get().activeWorkspaceId,
         };
 
-        await addDoc(collection(db, 'users', uid, 'transactions'), counterTx);
+        get().addTransaction(counterTx);
       },
 
       getUniqueMerchants: () => {
@@ -438,10 +406,10 @@ export const useFinanceStore = create(
 
         const thisMonthExpense = thisMonthTx
           .filter((t) => t.type === 'Expense')
-          .reduce((acc, t) => acc + t.amount, 0);
+          .reduce((acc, t) => acc + Number(t.amount || 0), 0);
         const lastMonthExpense = lastMonthTx
           .filter((t) => t.type === 'Expense')
-          .reduce((acc, t) => acc + t.amount, 0);
+          .reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
         const insights = [];
 
@@ -458,7 +426,7 @@ export const useFinanceStore = create(
           }
         }
 
-        const exceededBudgets = Object.entries(budgets).filter(
+        const exceededBudgets = Object.entries(budgets || {}).filter(
           ([_, b]) => b.spent >= b.limit * 0.9 && b.limit > 0
         );
         if (exceededBudgets.length > 0) {
@@ -469,7 +437,7 @@ export const useFinanceStore = create(
 
         const pendingLent = workspaceTxs
           .filter((t) => t.type === 'Lend' && !t.settled)
-          .reduce((acc, t) => acc + t.amount, 0);
+          .reduce((acc, t) => acc + Number(t.amount || 0), 0);
         if (pendingLent > 0) {
           insights.push(
             `You have lent ₹${pendingLent.toLocaleString()} that hasn't been returned yet.`
@@ -481,6 +449,155 @@ export const useFinanceStore = create(
         }
 
         return insights;
+      },
+
+      // --- SUPABASE SYNC LOGIC ---
+      syncWithSupabase: async () => {
+        if (!navigator.onLine) {
+          set({ syncError: 'Offline mode active. Changes saved locally.' });
+          return;
+        }
+
+        const { isConfigured } = getSupabaseConfig();
+        if (!isConfigured) {
+          // Supabase credentials not set yet. App operates 100% offline seamlessly.
+          set({ syncError: 'Supabase credentials not configured. Operating in local mode.' });
+          return;
+        }
+
+        try {
+          set({ isSyncing: true, syncError: null });
+
+          const { data: authData, error: authErr } = await supabase.auth.getUser();
+          if (authErr || !authData?.user) {
+            set({ isSyncing: false });
+            return;
+          }
+
+          const userId = authData.user.id;
+          const localTxs = get().transactions;
+
+          // 1. Sync User Settings
+          const settingsPayload = {
+            user_id: userId,
+            theme: get().theme,
+            has_completed_onboarding: get().hasCompletedOnboarding,
+            has_unread_notifications: get().hasUnreadNotifications,
+            require_password_for_delete: get().requirePasswordForDelete,
+            pin_platforms: get().pinPlatforms,
+            workspaces: get().workspaces,
+            active_workspace_id: get().activeWorkspaceId,
+            workspace_settings: get().workspaceSettings,
+            updated_at: new Date().toISOString(),
+          };
+
+          const { data: remoteSettings } = await supabase
+            .from('user_settings')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (!remoteSettings) {
+            await supabase.from('user_settings').upsert(settingsPayload);
+          } else {
+            // Merge remote settings if remote is updated
+            if (remoteSettings.workspaces) set({ workspaces: remoteSettings.workspaces });
+            if (remoteSettings.active_workspace_id) set({ activeWorkspaceId: remoteSettings.active_workspace_id });
+            if (remoteSettings.workspace_settings) set({ workspaceSettings: remoteSettings.workspace_settings });
+            if (remoteSettings.theme) set({ theme: remoteSettings.theme });
+            if (remoteSettings.pin_platforms) set({ pinPlatforms: remoteSettings.pin_platforms });
+            
+            // Push combined settings to remote
+            await supabase.from('user_settings').upsert(settingsPayload);
+          }
+
+          // 2. Sync Transactions
+          if (localTxs.length > 0) {
+            const rowsToUpsert = localTxs.map((t) => ({
+              id: t.id,
+              user_id: userId,
+              workspace_id: t.workspaceId || 'personal',
+              amount: t.amount,
+              type: t.type,
+              category: t.category,
+              recipient: t.recipient || '',
+              method: t.method,
+              note: t.note || '',
+              date: t.date,
+              settled: Boolean(t.settled),
+              created_at: t.createdAt || new Date().toISOString(),
+              updated_at: t.updatedAt || new Date().toISOString(),
+            }));
+
+            // Upsert in batches of 100
+            for (let i = 0; i < rowsToUpsert.length; i += 100) {
+              const batch = rowsToUpsert.slice(i, i + 100);
+              await supabase.from('transactions').upsert(batch, { onConflict: 'id' });
+            }
+          }
+
+          // 3. Fetch Remote Transactions from Supabase
+          const { data: dbTxs, error: dbErr } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('date', { ascending: false });
+
+          if (!dbErr && dbTxs) {
+            const formattedRemoteTxs = dbTxs.map((d) => ({
+              id: d.id,
+              amount: Number(d.amount),
+              type: d.type,
+              category: d.category,
+              recipient: d.recipient,
+              method: d.method,
+              note: d.note,
+              date: d.date,
+              settled: Boolean(d.settled),
+              workspaceId: d.workspace_id || 'personal',
+              createdAt: d.created_at,
+              updatedAt: d.updated_at,
+            }));
+
+            // Merge local and remote by ID (keep newest)
+            const map = new Map();
+            [...localTxs, ...formattedRemoteTxs].forEach((item) => {
+              const existing = map.get(item.id);
+              if (!existing) {
+                map.set(item.id, item);
+              } else {
+                const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+                const itemTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+                if (itemTime >= existingTime) {
+                  map.set(item.id, item);
+                }
+              }
+            });
+
+            const mergedTxs = Array.from(map.values()).sort(
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+            );
+
+            const updatedWorkspaceSettings = recalculateBudgets(mergedTxs, get().workspaceSettings);
+            set({
+              transactions: mergedTxs,
+              workspaceSettings: updatedWorkspaceSettings,
+            });
+          }
+
+          set({
+            lastSyncedAt: new Date().toISOString(),
+            pendingSyncCount: 0,
+            isSyncing: false,
+            syncError: null,
+          });
+        } catch (err) {
+          console.error('Supabase sync error:', err);
+          set({
+            isSyncing: false,
+            syncError: err.message || 'Sync failed. Will retry when online.',
+          });
+        }
       },
     }),
     {
@@ -496,6 +613,8 @@ export const useFinanceStore = create(
         activeWorkspaceId: state.activeWorkspaceId,
         workspaceSettings: state.workspaceSettings,
         pinPlatforms: state.pinPlatforms,
+        autoSyncEnabled: state.autoSyncEnabled,
+        lastSyncedAt: state.lastSyncedAt,
       }),
     }
   )

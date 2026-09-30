@@ -3,14 +3,13 @@ import { Lock, Fingerprint, Delete } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Capacitor } from '@capacitor/core';
-import { auth } from '../../firebase';
-import { signOut, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { supabase } from '../../supabase';
 import PinSetupModal from './PinSetupModal';
 
 export default function PinLoginScreen() {
   const [pinInput, setPinInput] = useState('');
   const [error, setError] = useState(false);
-  const { verifyPin, setIsPinVerified } = useAuth();
+  const { verifyPin, setIsPinVerified, currentUser, logout } = useAuth();
   const isBiometricEnabled = localStorage.getItem('finance_biometric_enabled') === 'true';
 
   const [isForgotPin, setIsForgotPin] = useState(false);
@@ -55,8 +54,6 @@ export default function PinLoginScreen() {
     }
   };
 
-  // Biometric is handled at the AuthContext level during app load
-
   useEffect(() => {
     if (isForgotPin || isSetupOpen) return;
     const handleKeyDown = (e) => {
@@ -72,16 +69,26 @@ export default function PinLoginScreen() {
   }, [pinInput, error, isForgotPin, isSetupOpen]);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await logout();
   };
 
   const handleReauth = async (e) => {
     e.preventDefault();
     setAuthError('');
-    if (!auth.currentUser?.email) return;
+    if (!currentUser?.email) {
+      // If offline without saved email or local auth, skip straight to PIN setup
+      setIsForgotPin(false);
+      setIsSetupOpen(true);
+      return;
+    }
     try {
-      const credential = EmailAuthProvider.credential(auth.currentUser.email, password);
-      await reauthenticateWithCredential(auth.currentUser, credential);
+      if (navigator.onLine) {
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password,
+        });
+        if (verifyErr) throw verifyErr;
+      }
       setIsForgotPin(false);
       setPassword('');
       setIsSetupOpen(true);

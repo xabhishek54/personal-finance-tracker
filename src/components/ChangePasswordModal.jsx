@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { supabase } from '../supabase';
 import { Lock, X, Check } from 'lucide-react';
 
 export default function ChangePasswordModal({ isOpen, onClose }) {
@@ -31,9 +31,17 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
 
     setIsUpdating(true);
     try {
-      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
-      await reauthenticateWithCredential(currentUser, credential);
-      await updatePassword(currentUser, newPassword);
+      if (currentUser?.email) {
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password: currentPassword,
+        });
+        if (verifyErr) throw verifyErr;
+      }
+
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateErr) throw updateErr;
+
       setSuccess('Password updated successfully!');
       setCurrentPassword('');
       setNewPassword('');
@@ -43,11 +51,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       }, 2000);
     } catch (err) {
       console.error(err);
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Incorrect current password.');
-      } else {
-        setError('Failed to update password. Please try again.');
-      }
+      setError(err.message || 'Failed to update password. Please try again.');
     } finally {
       setIsUpdating(false);
     }
