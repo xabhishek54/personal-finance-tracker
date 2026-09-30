@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
-import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { supabase } from '../supabase';
 import { Lock, X } from 'lucide-react';
 
 export default function SecurityAuthModal({ isOpen, onClose, onSuccess, title, message }) {
@@ -21,8 +21,13 @@ export default function SecurityAuthModal({ isOpen, onClose, onSuccess, title, m
 
     setIsVerifying(true);
     try {
-      const credential = EmailAuthProvider.credential(currentUser.email, password);
-      await reauthenticateWithCredential(currentUser, credential);
+      if (currentUser?.email && navigator.onLine) {
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password,
+        });
+        if (verifyErr) throw verifyErr;
+      }
       await onSuccess();
       onClose();
     } catch (err) {

@@ -1,27 +1,30 @@
 import { useState, useEffect } from 'react';
-import { WifiOff, RefreshCw } from 'lucide-react';
+import { WifiOff, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { useFinanceStore } from '../store/useFinanceStore';
 
 export default function SyncIndicator() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const isStoreSyncing = useFinanceStore((state) => state.isSyncing);
+  const pendingSyncCount = useFinanceStore((state) => state.pendingSyncCount);
+  const syncWithSupabase = useFinanceStore((state) => state.syncWithSupabase);
+  const [justSynced, setJustSynced] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      setIsSyncing(true);
-      // Firebase handles sync automatically when online. We just show a brief "Syncing..." message.
-      setTimeout(() => setIsSyncing(false), 2500);
+      syncWithSupabase();
     };
     const handleOffline = () => {
       setIsOnline(false);
-      setIsSyncing(false);
     };
 
     const handleManualSync = () => {
       setIsOnline(navigator.onLine);
       if (navigator.onLine) {
-        setIsSyncing(true);
-        setTimeout(() => setIsSyncing(false), 2500);
+        syncWithSupabase().then(() => {
+          setJustSynced(true);
+          setTimeout(() => setJustSynced(false), 2000);
+        });
       }
     };
 
@@ -34,9 +37,9 @@ export default function SyncIndicator() {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('manual-sync', handleManualSync);
     };
-  }, []);
+  }, [syncWithSupabase]);
 
-  if (isOnline && !isSyncing) return null;
+  if (isOnline && !isStoreSyncing && !justSynced && pendingSyncCount === 0) return null;
 
   return (
     <div
@@ -47,7 +50,11 @@ export default function SyncIndicator() {
         className={`px-4 py-2 rounded-full shadow-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md transition-colors ${
           !isOnline
             ? 'bg-[var(--status-red)]/90 text-white'
-            : 'bg-[var(--accent-violet)]/90 text-white'
+            : isStoreSyncing
+              ? 'bg-[var(--accent-violet)]/90 text-white'
+              : justSynced
+                ? 'bg-emerald-600/90 text-white'
+                : 'bg-amber-600/90 text-white'
         }`}
       >
         {!isOnline ? (
@@ -55,10 +62,20 @@ export default function SyncIndicator() {
             <WifiOff size={14} />
             <span>Offline - Saved Locally</span>
           </>
-        ) : (
+        ) : isStoreSyncing ? (
           <>
             <RefreshCw size={14} className="animate-spin" />
-            <span>Syncing...</span>
+            <span>Syncing with Supabase...</span>
+          </>
+        ) : justSynced ? (
+          <>
+            <CheckCircle2 size={14} />
+            <span>Synced!</span>
+          </>
+        ) : (
+          <>
+            <RefreshCw size={14} />
+            <span>{pendingSyncCount} pending change{pendingSyncCount > 1 ? 's' : ''}</span>
           </>
         )}
       </div>

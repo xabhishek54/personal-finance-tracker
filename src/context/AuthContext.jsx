@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { supabase, getSupabaseConfig } from '../supabase';
 import LoadingScreen from '../components/LoadingScreen';
-
 import { Capacitor } from '@capacitor/core';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
@@ -43,10 +41,48 @@ export function AuthProvider({ children }) {
   const [hasPinSetup, setHasPinSetup] = useState(() => !!localStorage.getItem('finance_user_pin'));
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        localStorage.setItem('finance_user', JSON.stringify({ uid: user.uid, email: user.email }));
-        // Check if PIN is required
+    let mounted = true;
+
+    // Check existing Supabase session or offline fallback
+    const initAuth = async () => {
+      const { isConfigured } = getSupabaseConfig();
+
+      if (isConfigured && navigator.onLine) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data?.session?.user) {
+            const u = {
+              uid: data.session.user.id,
+              email: data.session.user.email,
+              displayName: data.session.user.user_metadata?.full_name || '',
+            };
+            if (mounted) {
+              setCurrentUser(u);
+              localStorage.setItem('finance_user', JSON.stringify(u));
+            }
+          }
+        } catch (e) {
+          console.warn('Supabase auth session fetch error:', e);
+        }
+      }
+
+      if (mounted) setLoading(false);
+    };
+
+    initAuth();
+
+    // Listen to Supabase auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const u = {
+          uid: session.user.id,
+          email: session.user.email,
+          displayName: session.user.user_metadata?.full_name || '',
+        };
+        localStorage.setItem('finance_user', JSON.stringify(u));
+        setCurrentUser(u);
+
+        // Check PIN requirement
         const pin = localStorage.getItem('finance_user_pin');
         setHasPinSetup(!!pin);
 
@@ -86,16 +122,32 @@ export function AuthProvider({ children }) {
         }
 
         setIsPinVerified(!pinRequired);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         localStorage.removeItem('finance_user');
+        setCurrentUser(null);
         setIsPinVerified(false);
       }
-      setCurrentUser(user);
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      mounted = false;
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe();
+      }
+    };
   }, []);
+
+  const logout = async () => {
+    localStorage.removeItem('finance_user');
+    setCurrentUser(null);
+    setIsPinVerified(false);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Sign out error:', err);
+    }
+  };
 
   const verifyPin = (pinStr) => {
     const savedPin = localStorage.getItem('finance_user_pin');
@@ -128,7 +180,8 @@ export function AuthProvider({ children }) {
         verifyPin,
         setupPin,
         removePin,
-        setIsPinVerified, // Exporting in case biometric unlocks it
+        setIsPinVerified,
+        logout,
       }}
     >
       {loading ? <LoadingScreen /> : children}

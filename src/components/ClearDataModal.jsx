@@ -1,37 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuth } from '../context/AuthContext';
-import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
-import { db } from '../firebase';
-import { collection, query, getDocs, deleteDoc, doc, writeBatch } from 'firebase/firestore';
-import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { useFinanceStore } from '../store/useFinanceStore';
 import { AlertTriangle, Lock, Trash2, X, ArrowRight } from 'lucide-react';
-import { subHours, subMonths, parseISO } from 'date-fns';
+import { supabase } from '../supabase';
 
 export default function ClearDataModal({ isOpen, onClose }) {
-  const { currentUser } = useAuth();
-  const transactions = useFilteredTransactions();
+  const clearLocalData = useFinanceStore((state) => state.clearLocalData);
   const [clearType, setClearType] = useState('24h'); // '24h', 'month', 'all'
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [step, setStep] = useState(1);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   if (!isOpen) return null;
 
-  const handleReauthenticate = async () => {
+  const handleVerify = async () => {
     setError('');
     if (!password) {
       setError('Please enter your password.');
@@ -39,8 +22,16 @@ export default function ClearDataModal({ isOpen, onClose }) {
     }
 
     try {
-      const credential = EmailAuthProvider.credential(currentUser.email, password);
-      await reauthenticateWithCredential(currentUser, credential);
+      if (navigator.onLine) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user?.email) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: authData.user.email,
+            password,
+          });
+          if (signInErr) throw signInErr;
+        }
+      }
       setStep(2);
     } catch (err) {
       setError('Incorrect password. Please try again.');
@@ -50,40 +41,14 @@ export default function ClearDataModal({ isOpen, onClose }) {
   const handleClearData = async () => {
     setIsDeleting(true);
     try {
-      const txsRef = collection(db, 'users', currentUser.uid, 'transactions');
-      let txsToDelete = [];
-      const now = new Date();
-
-      if (clearType === 'all') {
-        const q = query(txsRef);
-        const snapshot = await getDocs(q);
-        txsToDelete = snapshot.docs;
-      } else if (clearType === '24h') {
-        const cutoff = subHours(now, 24);
-        txsToDelete = transactions
-          .filter((t) => parseISO(t.date) >= cutoff)
-          .map((t) => ({ id: t.id }));
-      } else if (clearType === 'month') {
-        const cutoff = subMonths(now, 1);
-        txsToDelete = transactions
-          .filter((t) => parseISO(t.date) >= cutoff)
-          .map((t) => ({ id: t.id }));
-      }
-
-      // Batch delete
-      const batch = writeBatch(db);
-      txsToDelete.forEach((tx) => {
-        batch.delete(doc(db, 'users', currentUser.uid, 'transactions', tx.id));
-      });
-      await batch.commit();
-
-      // We do not delete user settings here, just transactions
+      await clearLocalData(clearType);
       onClose();
     } catch (err) {
       setError('Failed to clear data.');
       console.error(err);
+    } finally {
+      setIsDeleting(false);
     }
-    setIsDeleting(false);
   };
 
   return createPortal(
@@ -102,28 +67,10 @@ export default function ClearDataModal({ isOpen, onClose }) {
         </header>
 
         <div className="p-6 flex flex-col gap-6">
-          {!isOnline ? (
-            <div className="flex flex-col items-center gap-3 text-center py-4">
-              <div className="w-16 h-16 rounded-full bg-[var(--status-red)]/10 text-[var(--status-red)] flex items-center justify-center">
-                <AlertTriangle size={32} />
-              </div>
-              <h3 className="text-xl font-bold">Offline Mode</h3>
-              <p className="text-sm text-[var(--text-muted)]">
-                You cannot delete data while offline to prevent synchronization conflicts. Please
-                connect to the internet.
-              </p>
-              <button
-                onClick={onClose}
-                className="w-full py-3.5 mt-4 rounded-xl bg-[var(--bg-surface-lit)] font-bold active:scale-[0.98]"
-              >
-                Close
-              </button>
-            </div>
-          ) : step === 1 ? (
+          {step === 1 ? (
             <>
               <p className="text-sm text-[var(--text-muted)]">
-                You are about to permanently delete your transaction data. Please select what you
-                want to delete and verify your password to continue.
+                You are about to permanently delete your transaction data. Select what you want to delete and verify your password to continue.
               </p>
 
               <div className="flex flex-col gap-3">
@@ -168,7 +115,7 @@ export default function ClearDataModal({ isOpen, onClose }) {
               </div>
 
               <button
-                onClick={handleReauthenticate}
+                onClick={handleVerify}
                 className="w-full py-3.5 mt-2 rounded-xl bg-[var(--status-red)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--status-red)]/20 active:scale-[0.98] transition-transform"
               >
                 Verify & Continue <ArrowRight size={18} />
@@ -182,8 +129,7 @@ export default function ClearDataModal({ isOpen, onClose }) {
                 </div>
                 <h3 className="text-xl font-bold">Are you absolutely sure?</h3>
                 <p className="text-sm text-[var(--text-muted)]">
-                  This action cannot be undone. All selected transactions will be permanently
-                  deleted from our servers.
+                  This action cannot be undone. All selected transactions will be permanently deleted locally and synced to Supabase.
                 </p>
               </div>
 
