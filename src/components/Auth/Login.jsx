@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Mail, Lock, LogIn, UserPlus, User, WifiOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, User, WifiOff, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { loadDemoAccountData, DEMO_USER } from '../../utils/mockData';
 
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -33,6 +34,12 @@ export default function Login() {
     }
   };
 
+  const handleDemoAccount = () => {
+    loadDemoAccountData();
+    loginOffline(DEMO_USER);
+    window.location.href = '/';
+  };
+
   const handleOfflineMode = () => {
     loginOffline({
       email: email || 'offline@user.local',
@@ -49,7 +56,6 @@ export default function Login() {
 
     try {
       if (!navigator.onLine || !isSupabaseConfigured) {
-        // Automatically log in offline if offline or Supabase not configured yet
         handleOfflineMode();
         return;
       }
@@ -74,9 +80,8 @@ export default function Login() {
           localStorage.setItem('finance_user', JSON.stringify(u));
           navigate('/');
         } else if (data?.user) {
-          // Email confirmation enabled on Supabase
           setSuccessMsg(
-            'Account registered successfully! If email confirmation is enabled on your Supabase project, check your inbox to verify, or log in now.'
+            'Account registered successfully! Check your inbox to verify email, or log in below.'
           );
           setIsRegistering(false);
         }
@@ -89,7 +94,7 @@ export default function Login() {
         if (signInErr) {
           if (signInErr.message?.toLowerCase().includes('email not confirmed')) {
             throw new Error(
-              'Email not confirmed yet. Check your email inbox or disable "Confirm email" in Supabase Authentication settings.'
+              'Email not confirmed yet. Check your email inbox or click "Try Demo Account" below to test immediately.'
             );
           }
           throw signInErr;
@@ -127,7 +132,23 @@ export default function Login() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
+        {/* Demo Account Banner */}
+        <button
+          type="button"
+          onClick={handleDemoAccount}
+          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer hover:opacity-95"
+        >
+          <Sparkles size={18} className="animate-bounce" /> Load Demo Account (Sample Data)
+        </button>
+
+        <div className="relative flex items-center justify-center my-1">
+          <div className="border-t border-[var(--bg-surface-lit)] w-full"></div>
+          <span className="bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold absolute">
+            or use account
+          </span>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
             <div className="bg-[var(--status-red)]/10 text-[var(--status-red)] p-3.5 rounded-xl text-sm font-medium border border-[var(--status-red)]/20 animate-[popIn_200ms_ease-out] flex flex-col gap-2">
               <div className="flex items-center gap-2">
@@ -237,7 +258,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="flex flex-col gap-3 items-center text-center mt-2">
+        <div className="flex flex-col gap-3 items-center text-center mt-1">
           <button
             type="button"
             onClick={handleOfflineMode}
