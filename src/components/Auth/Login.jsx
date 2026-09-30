@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Mail, Lock, LogIn, UserPlus, User } from 'lucide-react';
-import { supabase } from '../../supabase';
+import { Mail, Lock, LogIn, UserPlus, User, WifiOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -11,6 +12,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const { loginOffline } = useAuth();
   const navigate = useNavigate();
 
   const handleResetPassword = async () => {
@@ -31,6 +33,14 @@ export default function Login() {
     }
   };
 
+  const handleOfflineMode = () => {
+    loginOffline({
+      email: email || 'offline@user.local',
+      displayName: name || email.split('@')[0] || 'Local User',
+    });
+    navigate('/');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -38,6 +48,12 @@ export default function Login() {
     setLoading(true);
 
     try {
+      if (!navigator.onLine || !isSupabaseConfigured) {
+        // Automatically log in offline if offline or Supabase not configured yet
+        handleOfflineMode();
+        return;
+      }
+
       if (isRegistering) {
         const { data, error: signUpErr } = await supabase.auth.signUp({
           email,
@@ -46,23 +62,38 @@ export default function Login() {
             data: { full_name: name },
           },
         });
+
         if (signUpErr) throw signUpErr;
 
-        if (data?.user) {
+        if (data?.session?.user) {
           const u = {
-            uid: data.user.id,
-            email: data.user.email,
+            uid: data.session.user.id,
+            email: data.session.user.email,
             displayName: name,
           };
           localStorage.setItem('finance_user', JSON.stringify(u));
           navigate('/');
+        } else if (data?.user) {
+          // Email confirmation enabled on Supabase
+          setSuccessMsg(
+            'Account registered successfully! If email confirmation is enabled on your Supabase project, check your inbox to verify, or log in now.'
+          );
+          setIsRegistering(false);
         }
       } else {
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (signInErr) throw signInErr;
+
+        if (signInErr) {
+          if (signInErr.message?.toLowerCase().includes('email not confirmed')) {
+            throw new Error(
+              'Email not confirmed yet. Check your email inbox or disable "Confirm email" in Supabase Authentication settings.'
+            );
+          }
+          throw signInErr;
+        }
 
         if (data?.user) {
           const u = {
@@ -75,7 +106,8 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please try again.');
+      console.error('Auth error:', err);
+      setError(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -90,21 +122,32 @@ export default function Login() {
           </h1>
           <p className="text-[var(--text-muted)] text-sm mt-2">
             {isRegistering
-              ? 'Sign up to sync your personal finance tracker.'
+              ? 'Sign up to track & sync your personal finances.'
               : 'Log in to access your offline & cloud financial dashboard.'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
           {error && (
-            <div className="bg-[var(--status-red)]/10 text-[var(--status-red)] p-3 rounded-xl text-sm font-medium border border-[var(--status-red)]/20 animate-[popIn_200ms_ease-out]">
-              {error}
+            <div className="bg-[var(--status-red)]/10 text-[var(--status-red)] p-3.5 rounded-xl text-sm font-medium border border-[var(--status-red)]/20 animate-[popIn_200ms_ease-out] flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={18} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleOfflineMode}
+                className="mt-1 text-xs font-bold underline hover:opacity-80 self-start text-[var(--text-main)]"
+              >
+                Or Continue in Offline Mode →
+              </button>
             </div>
           )}
 
           {successMsg && (
-            <div className="bg-emerald-500/10 text-emerald-500 p-3 rounded-xl text-sm font-medium border border-emerald-500/20 animate-[popIn_200ms_ease-out]">
-              {successMsg}
+            <div className="bg-emerald-500/10 text-emerald-500 p-3.5 rounded-xl text-sm font-medium border border-emerald-500/20 animate-[popIn_200ms_ease-out] flex items-center gap-2">
+              <CheckCircle2 size={18} className="shrink-0" />
+              <span>{successMsg}</span>
             </div>
           )}
 
@@ -168,7 +211,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={handleResetPassword}
-                className="text-xs text-[var(--accent-violet)] font-bold self-end hover:underline mt-1"
+                className="text-xs text-[var(--accent-violet)] font-bold self-end hover:underline mt-1 cursor-pointer"
               >
                 Forgot Password?
               </button>
@@ -178,7 +221,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-4 w-full py-3.5 rounded-xl bg-[var(--accent-violet)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--accent-glow)] active:scale-[0.98] transition-transform disabled:opacity-50 disabled:pointer-events-none"
+            className="mt-4 w-full py-3.5 rounded-xl bg-[var(--accent-violet)] text-white font-bold flex justify-center items-center gap-2 shadow-lg shadow-[var(--accent-glow)] active:scale-[0.98] transition-transform disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -194,19 +237,29 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="text-center text-sm text-[var(--text-muted)] mt-2">
-          {isRegistering ? 'Already have an account? ' : "Don't have an account? "}
+        <div className="flex flex-col gap-3 items-center text-center mt-2">
           <button
             type="button"
-            onClick={() => {
-              setIsRegistering(!isRegistering);
-              setError('');
-              setSuccessMsg('');
-            }}
-            className="text-[var(--accent-violet)] font-bold hover:underline"
+            onClick={handleOfflineMode}
+            className="w-full py-2.5 rounded-xl bg-[var(--bg-surface-lit)] text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            {isRegistering ? 'Log In' : 'Sign Up'}
+            <WifiOff size={14} /> Continue in Offline Mode
           </button>
+
+          <div className="text-sm text-[var(--text-muted)] mt-1">
+            {isRegistering ? 'Already have an account? ' : "Don't have an account? "}
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setError('');
+                setSuccessMsg('');
+              }}
+              className="text-[var(--accent-violet)] font-bold hover:underline cursor-pointer"
+            >
+              {isRegistering ? 'Log In' : 'Sign Up'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

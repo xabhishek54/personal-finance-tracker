@@ -43,7 +43,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    // Check existing Supabase session or offline fallback
     const initAuth = async () => {
       const { isConfigured } = getSupabaseConfig();
 
@@ -71,7 +70,6 @@ export function AuthProvider({ children }) {
 
     initAuth();
 
-    // Listen to Supabase auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const u = {
@@ -82,7 +80,6 @@ export function AuthProvider({ children }) {
         localStorage.setItem('finance_user', JSON.stringify(u));
         setCurrentUser(u);
 
-        // Check PIN requirement
         const pin = localStorage.getItem('finance_user_pin');
         setHasPinSetup(!!pin);
 
@@ -138,6 +135,17 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  const loginOffline = (userObj) => {
+    const u = {
+      uid: userObj.uid || `user_local_${Date.now()}`,
+      email: userObj.email || 'offline@user.local',
+      displayName: userObj.displayName || 'Local User',
+    };
+    localStorage.setItem('finance_user', JSON.stringify(u));
+    setCurrentUser(u);
+    setIsPinVerified(true);
+  };
+
   const logout = async () => {
     localStorage.removeItem('finance_user');
     setCurrentUser(null);
@@ -181,6 +189,7 @@ export function AuthProvider({ children }) {
         setupPin,
         removePin,
         setIsPinVerified,
+        loginOffline,
         logout,
       }}
     >
