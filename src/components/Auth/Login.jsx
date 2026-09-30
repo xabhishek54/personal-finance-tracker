@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Mail, Lock, LogIn, UserPlus, User, WifiOff, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, User, WifiOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { loadDemoAccountData, DEMO_USER } from '../../utils/mockData';
+
 
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -32,12 +32,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoAccount = () => {
-    loadDemoAccountData();
-    loginOffline(DEMO_USER);
-    window.location.href = '/';
   };
 
   const handleOfflineMode = () => {
@@ -81,7 +75,7 @@ export default function Login() {
           navigate('/');
         } else if (data?.user) {
           setSuccessMsg(
-            'Account registered successfully! Check your inbox to verify email, or log in below.'
+            'Account registered successfully! Check your inbox to verify your email, then log in.'
           );
           setIsRegistering(false);
         }
@@ -94,7 +88,7 @@ export default function Login() {
         if (signInErr) {
           if (signInErr.message?.toLowerCase().includes('email not confirmed')) {
             throw new Error(
-              'Email not confirmed yet. Check your email inbox or click "Try Demo Account" below to test immediately.'
+              'Email not confirmed yet. Please check your inbox and verify your email first.'
             );
           }
           throw signInErr;
@@ -132,21 +126,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Demo Account Banner */}
-        <button
-          type="button"
-          onClick={handleDemoAccount}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer hover:opacity-95"
-        >
-          <Sparkles size={18} className="animate-bounce" /> Load Demo Account (Sample Data)
-        </button>
-
-        <div className="relative flex items-center justify-center my-1">
-          <div className="border-t border-[var(--bg-surface-lit)] w-full"></div>
-          <span className="bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold absolute">
-            or use account
-          </span>
-        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (

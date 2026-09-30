@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { subMonths, isSameMonth, parseISO, subHours } from 'date-fns';
 import { supabase, getSupabaseConfig } from '../supabase';
+import { generateDemoData } from '../utils/mockData';
 
 const defaultSettings = {
   budgets: {
@@ -87,7 +88,24 @@ export const useFinanceStore = create(
         set({ autoSyncEnabled: enabled });
       },
 
-      // Offline-first mutation trigger to optionally auto-sync in background
+      loadDemoData: () => {
+        const demoState = generateDemoData();
+        const updatedWorkspaceSettings = recalculateBudgets(
+          demoState.transactions,
+          demoState.workspaceSettings
+        );
+        set({
+          transactions: demoState.transactions,
+          workspaces: demoState.workspaces,
+          activeWorkspaceId: demoState.activeWorkspaceId,
+          workspaceSettings: updatedWorkspaceSettings,
+          theme: demoState.theme,
+          hasCompletedOnboarding: true,
+          pendingSyncCount: demoState.transactions.length,
+        });
+        get().triggerAutoSync();
+      },
+
       triggerAutoSync: () => {
         const state = get();
         if (state.autoSyncEnabled && navigator.onLine) {
@@ -125,7 +143,7 @@ export const useFinanceStore = create(
 
       deleteWorkspace: async (id) => {
         const { workspaces, workspaceSettings, transactions, activeWorkspaceId } = get();
-        if (workspaces.length <= 1) return; // Cannot delete last workspace
+        if (workspaces.length <= 1) return;
 
         const newWorkspaces = workspaces.filter((w) => w.id !== id);
         const newSettings = { ...workspaceSettings };
@@ -220,7 +238,7 @@ export const useFinanceStore = create(
 
       initializeUserSync: async (userId) => {
         set({ isInitialized: true });
-        // Trigger sync with Supabase when initializing
+        // Sync with Supabase to load any existing user data
         await get().syncWithSupabase();
       },
 
@@ -292,7 +310,6 @@ export const useFinanceStore = create(
           pendingSyncCount: state.pendingSyncCount + 1,
         }));
 
-        // If online, also delete from Supabase in background
         if (navigator.onLine) {
           supabase.auth.getUser().then(({ data }) => {
             if (data?.user?.id) {
@@ -460,7 +477,6 @@ export const useFinanceStore = create(
 
         const { isConfigured } = getSupabaseConfig();
         if (!isConfigured) {
-          // Supabase credentials not set yet. App operates 100% offline seamlessly.
           set({ syncError: 'Supabase credentials not configured. Operating in local mode.' });
           return;
         }
@@ -500,14 +516,12 @@ export const useFinanceStore = create(
           if (!remoteSettings) {
             await supabase.from('user_settings').upsert(settingsPayload);
           } else {
-            // Merge remote settings if remote is updated
             if (remoteSettings.workspaces) set({ workspaces: remoteSettings.workspaces });
             if (remoteSettings.active_workspace_id) set({ activeWorkspaceId: remoteSettings.active_workspace_id });
             if (remoteSettings.workspace_settings) set({ workspaceSettings: remoteSettings.workspace_settings });
             if (remoteSettings.theme) set({ theme: remoteSettings.theme });
             if (remoteSettings.pin_platforms) set({ pinPlatforms: remoteSettings.pin_platforms });
             
-            // Push combined settings to remote
             await supabase.from('user_settings').upsert(settingsPayload);
           }
 
@@ -529,7 +543,6 @@ export const useFinanceStore = create(
               updated_at: t.updatedAt || new Date().toISOString(),
             }));
 
-            // Upsert in batches of 100
             for (let i = 0; i < rowsToUpsert.length; i += 100) {
               const batch = rowsToUpsert.slice(i, i + 100);
               await supabase.from('transactions').upsert(batch, { onConflict: 'id' });
@@ -543,7 +556,7 @@ export const useFinanceStore = create(
             .eq('user_id', userId)
             .order('date', { ascending: false });
 
-          if (!dbErr && dbTxs) {
+          if (!dbErr && dbTxs && dbTxs.length > 0) {
             const formattedRemoteTxs = dbTxs.map((d) => ({
               id: d.id,
               amount: Number(d.amount),
@@ -559,7 +572,6 @@ export const useFinanceStore = create(
               updatedAt: d.updated_at,
             }));
 
-            // Merge local and remote by ID (keep newest)
             const map = new Map();
             [...localTxs, ...formattedRemoteTxs].forEach((item) => {
               const existing = map.get(item.id);
