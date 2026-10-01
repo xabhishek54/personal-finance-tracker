@@ -12,12 +12,14 @@ import {
   LayoutDashboard,
   ReceiptText,
   PieChart,
+  HandCoins,
   Plus,
   Settings,
   LogOut,
   ChevronDown,
   Edit2,
   Trash2,
+  Command,
 } from 'lucide-react';
 import { useFinanceStore } from './store/useFinanceStore';
 import { App as CapApp } from '@capacitor/app';
@@ -44,7 +46,6 @@ function PrivateRoute({ children }) {
   return children;
 }
 
-// Auth synchronization component wrapper to access AuthContext
 const SyncWrapper = ({ children }) => {
   const { currentUser } = useAuth();
   const initializeUserSync = useFinanceStore((state) => state.initializeUserSync);
@@ -64,14 +65,14 @@ const PageTitleUpdater = () => {
 
   useEffect(() => {
     const titles = {
-      '/': 'Dashboard | Finance Tracker',
-      '/logs': 'Transactions | Finance Tracker',
-      '/budgets': 'Analytics | Finance Tracker',
-      '/debts': 'Debts | Finance Tracker',
-      '/settings': 'Settings | Finance Tracker',
-      '/login': 'Login | Finance Tracker',
+      '/': 'Dashboard | Personal Finance',
+      '/logs': 'Transactions | Personal Finance',
+      '/budgets': 'Budgets & Analytics | Personal Finance',
+      '/debts': 'Lend & Borrow | Personal Finance',
+      '/settings': 'Settings | Personal Finance',
+      '/login': 'Login | Personal Finance',
     };
-    document.title = titles[location.pathname] || 'Finance Tracker';
+    document.title = titles[location.pathname] || 'Personal Finance Tracker';
   }, [location.pathname]);
 
   useEffect(() => {
@@ -124,7 +125,6 @@ const PageTitleUpdater = () => {
   return null;
 };
 
-// Main Layout Content component to access useAuth hook
 function AppContent() {
   const { logout } = useAuth();
   const {
@@ -138,6 +138,7 @@ function AppContent() {
     syncWithSupabase,
   } = useFinanceStore();
 
+  const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
@@ -181,6 +182,20 @@ function AppContent() {
     });
   };
 
+  // Global Keyboard Shortcut listener: Alt+N or N (when not focused on input)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName);
+      if (!isInput && (e.key === 'n' || e.key === 'N' || (e.altKey && e.key.toLowerCase() === 'n'))) {
+        e.preventDefault();
+        setIsAddModalOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   useEffect(() => {
     const handleAddParam = () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -211,9 +226,9 @@ function AppContent() {
 
   const navItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { id: 'logs', icon: ReceiptText, label: 'Logs', path: '/logs' },
-    { id: 'budgets', icon: PieChart, label: 'Budgets', path: '/budgets' },
-    { id: 'debts', icon: ReceiptText, label: 'Debts', path: '/debts' },
+    { id: 'logs', icon: ReceiptText, label: 'Transactions', path: '/logs' },
+    { id: 'budgets', icon: PieChart, label: 'Budgets & Analytics', path: '/budgets' },
+    { id: 'debts', icon: HandCoins, label: 'Lend & Borrow', path: '/debts' },
     { id: 'settings', icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
@@ -222,20 +237,23 @@ function AppContent() {
     await syncWithSupabase();
   };
 
+  const isSettingsPage = location.pathname === '/settings';
+
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg-space)] transition-colors duration-200">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-[var(--bg-surface)] border-r border-[var(--bg-surface-lit)] py-6 px-4 gap-8 z-10 shrink-0 relative">
+      {/* Desktop Sidebar - Standardized 240px (w-60) */}
+      <aside className="hidden lg:flex flex-col w-60 bg-[var(--bg-surface)] border-r border-[var(--bg-surface-lit)] py-6 px-4 gap-6 z-10 shrink-0 relative">
         <div className="flex flex-col gap-2">
           <button
             onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-            className="w-full h-14 px-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] flex items-center justify-between shadow-sm hover:shadow-md hover:border-[var(--accent-violet)]/50 active:scale-[0.98] transition-all"
+            aria-label="Switch Mode"
+            className="w-full h-12 px-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] flex items-center justify-between shadow-sm hover:border-[var(--accent-violet)]/50 active:scale-[0.98] transition-all"
           >
-            <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex items-center gap-2.5 overflow-hidden">
               <img
                 src="/favicon.png"
                 alt="Logo"
-                className="w-8 h-8 object-contain shrink-0"
+                className="w-7 h-7 object-contain shrink-0"
               />
               <span className="font-bold text-sm truncate">
                 {activeWorkspace.name}
@@ -262,9 +280,10 @@ function AppContent() {
                 >
                   {w.name}
                 </button>
-                <div className="flex pr-2 opacity-100 transition-opacity">
+                <div className="flex pr-2">
                   <button
                     onClick={(e) => handleRenameWorkspace(w, e)}
+                    title="Rename"
                     className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-violet)]"
                   >
                     <Edit2 size={12} />
@@ -272,6 +291,7 @@ function AppContent() {
                   {workspaces.length > 1 && (
                     <button
                       onClick={(e) => handleDeleteWorkspace(w, e)}
+                      title="Delete"
                       className="p-1.5 text-[var(--text-muted)] hover:text-[var(--status-red)]"
                     >
                       <Trash2 size={12} />
@@ -291,100 +311,107 @@ function AppContent() {
           </div>
         )}
 
-        <nav className="flex flex-col gap-2 flex-1 mt-4">
+        {/* Sidebar Add Transaction Button */}
+        {!isSettingsPage && (
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="w-full py-2.5 px-4 bg-[var(--accent-violet)] text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-md shadow-[var(--accent-glow)] hover:opacity-95 active:scale-[0.98] transition-all text-sm"
+          >
+            <Plus size={18} />
+            <span>Add Transaction</span>
+            <span className="ml-auto text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono hidden xl:inline-block">N</span>
+          </button>
+        )}
+
+        <nav className="flex flex-col gap-1.5 flex-1 mt-2">
           {navItems.map((item) => (
             <NavLink
               key={item.id}
               to={item.path}
               className={({ isActive }) =>
-                `p-3 px-4 rounded-xl flex items-center gap-3 transition-all duration-200 font-medium ${
+                `p-2.5 px-3.5 rounded-xl flex items-center gap-3 transition-all duration-150 font-medium text-sm ${
                   isActive
-                    ? 'bg-[var(--accent-violet)] text-white shadow-md shadow-[var(--accent-glow)]'
+                    ? 'bg-[var(--accent-violet)] text-white shadow-sm'
                     : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-lit)] hover:text-[var(--text-main)]'
                 }`
               }
             >
-              <item.icon size={20} />
-              {item.label}
+              <item.icon size={18} />
+              <span className="truncate">{item.label}</span>
             </NavLink>
           ))}
         </nav>
 
         <button
           onClick={logout}
-          className="mt-auto p-3 px-4 rounded-xl flex items-center gap-3 transition-all duration-200 font-medium text-[var(--text-muted)] hover:bg-[var(--status-red)]/10 hover:text-[var(--status-red)] mb-4"
+          aria-label="Log Out"
+          className="mt-auto p-2.5 px-3.5 rounded-xl flex items-center gap-3 transition-all duration-150 font-medium text-sm text-[var(--text-muted)] hover:bg-[var(--status-red)]/10 hover:text-[var(--status-red)]"
         >
-          <LogOut size={20} />
-          Log Out
+          <LogOut size={18} />
+          <span>Log Out</span>
         </button>
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden flex flex-col page-enter relative">
         <PullToRefresh onRefresh={handleRefresh}>
-          {/* Mobile Workspace Switcher */}
-          <div className="lg:hidden absolute top-4 left-4 z-[90]">
+          {/* Mobile Header Bar */}
+          <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--bg-surface-lit)] bg-[var(--bg-surface)]/95 backdrop-blur-md z-[80] sticky top-0">
             <button
               onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-              className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] shadow-sm text-xs font-bold flex items-center gap-2 active:scale-95 transition-transform"
+              aria-label="Switch Mode"
+              className="px-3 py-1.5 rounded-full bg-[var(--bg-surface-lit)] shadow-sm text-xs font-bold flex items-center gap-2 active:scale-95 transition-transform"
             >
-              <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                <img
-                  src="/favicon.png"
-                  alt="Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              {activeWorkspace.name}
+              <img
+                src="/favicon.png"
+                alt="Logo"
+                className="w-4 h-4 object-contain"
+              />
+              <span className="truncate max-w-[120px]">{activeWorkspace.name}</span>
               <ChevronDown size={12} className="text-[var(--text-muted)]" />
             </button>
-            {showWorkspaceMenu && (
-              <div className="absolute top-full left-0 mt-2 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-xl w-48 py-2 animate-[popIn_150ms_ease-out]">
-                <div className="px-3 py-1.5 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                  Modes
-                </div>
-                {workspaces?.map((w) => (
-                  <div key={w.id} className="flex items-center">
-                    <button
-                      onClick={() => {
-                        switchWorkspace(w.id);
-                        setShowWorkspaceMenu(false);
-                      }}
-                      className={`flex-1 text-left px-4 py-2 text-sm transition-colors ${activeWorkspaceId === w.id ? 'text-[var(--accent-violet)] font-bold bg-[var(--accent-violet)]/10' : 'hover:bg-[var(--bg-surface-lit)]'}`}
-                    >
-                      {w.name}
-                    </button>
-                    <div className="flex pr-2">
-                      <button
-                        onClick={(e) => handleRenameWorkspace(w, e)}
-                        className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-violet)]"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      {workspaces.length > 1 && (
-                        <button
-                          onClick={(e) => handleDeleteWorkspace(w, e)}
-                          className="p-1.5 text-[var(--text-muted)] hover:text-[var(--status-red)]"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                <div className="border-t border-[var(--bg-surface-lit)] mt-2 pt-2">
-                  <button
-                    onClick={handleAddWorkspace}
-                    className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-[var(--bg-surface-lit)]"
-                  >
-                    <Plus size={14} /> New Mode
-                  </button>
-                </div>
-              </div>
+
+            {!isSettingsPage && (
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-3 py-1.5 bg-[var(--accent-violet)] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
+              >
+                <Plus size={14} /> Add
+              </button>
             )}
           </div>
 
-          <div className="max-w-5xl mx-auto p-4 pt-16 pb-24 md:p-6 lg:pt-8 lg:p-8 lg:pb-8 min-h-full">
+          {/* Mobile Workspace Dropdown */}
+          {showWorkspaceMenu && (
+            <div className="lg:hidden absolute top-12 left-4 z-[95] bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl shadow-xl w-56 py-2 animate-[popIn_150ms_ease-out]">
+              <div className="px-3 py-1.5 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                Modes
+              </div>
+              {workspaces?.map((w) => (
+                <div key={w.id} className="flex items-center">
+                  <button
+                    onClick={() => {
+                      switchWorkspace(w.id);
+                      setShowWorkspaceMenu(false);
+                    }}
+                    className={`flex-1 text-left px-4 py-2 text-sm transition-colors ${activeWorkspaceId === w.id ? 'text-[var(--accent-violet)] font-bold bg-[var(--accent-violet)]/10' : 'hover:bg-[var(--bg-surface-lit)]'}`}
+                  >
+                    {w.name}
+                  </button>
+                </div>
+              ))}
+              <div className="border-t border-[var(--bg-surface-lit)] mt-2 pt-2">
+                <button
+                  onClick={handleAddWorkspace}
+                  className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-[var(--bg-surface-lit)]"
+                >
+                  <Plus size={14} /> New Mode
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="max-w-7xl mx-auto p-4 pt-4 pb-20 md:p-6 lg:p-8 lg:pb-8 min-h-full">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/logs" element={<TransactionLog />} />
@@ -397,46 +424,31 @@ function AppContent() {
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 w-full glass-nav flex items-center justify-around px-4 z-50 pb-safe">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 w-full glass-nav flex items-center justify-around px-2 z-50 pb-safe">
         {navItems.map((item) => (
           <NavLink
             key={item.id}
             to={item.path}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 transition-colors duration-200 ${
-                isActive ? 'text-[var(--accent-violet)]' : 'text-[var(--text-muted)]'
+              `flex flex-col items-center gap-1 py-1 px-2.5 rounded-lg transition-colors duration-150 ${
+                isActive ? 'text-[var(--accent-violet)] font-bold' : 'text-[var(--text-muted)]'
               }`
             }
           >
-            <item.icon size={20} />
-            <span className="text-[10px] font-medium">{item.label}</span>
+            <item.icon size={18} />
+            <span className="text-[10px]">{item.label.split(' ')[0]}</span>
           </NavLink>
         ))}
 
-        {/* Mobile FAB */}
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-[var(--accent-violet)] text-white rounded-full flex items-center justify-center shadow-lg shadow-[var(--accent-glow)] active:scale-95 transition-transform duration-150"
-        >
-          <Plus size={28} />
-        </button>
-
         <button
           onClick={logout}
-          className="flex flex-col items-center gap-1 p-2 min-w-[64px] rounded-xl transition-colors text-[var(--text-muted)] hover:text-[var(--status-red)]"
+          aria-label="Log Out"
+          className="flex flex-col items-center gap-1 py-1 px-2.5 rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--status-red)]"
         >
-          <LogOut size={20} />
-          <span className="text-[10px] font-medium">Log Out</span>
+          <LogOut size={18} />
+          <span className="text-[10px]">Exit</span>
         </button>
       </nav>
-
-      {/* Desktop FAB */}
-      <button
-        onClick={() => setIsAddModalOpen(true)}
-        className="hidden lg:flex fixed bottom-8 right-8 w-16 h-16 bg-[var(--accent-violet)] text-white rounded-full items-center justify-center shadow-lg shadow-[var(--accent-glow)] hover:scale-105 active:scale-95 transition-transform duration-150 z-50"
-      >
-        <Plus size={32} />
-      </button>
 
       <AddTransactionModal
         isOpen={isAddModalOpen}

@@ -7,8 +7,8 @@
     --bg-surface-lit: #f4f4f5;
     --accent-violet: #6366f1;
     --accent-glow: rgba(99, 102, 241, 0.15);
-    --text-main: #18181b;
-    --text-muted: #71717a;
+    --text-main: #09090b;
+    --text-muted: #52525b; /* Improved WCAG AA contrast ratio */
     --status-green: #10b981;
     --status-yellow: #f59e0b;
     --status-red: #ef4444;
@@ -21,7 +21,26 @@
     --accent-violet: #7c3aed;
     --accent-glow: rgba(124, 58, 237, 0.15);
     --text-main: #f9fafb;
-    --text-muted: #9ca3af;
+    --text-muted: #a1a1aa; /* Improved WCAG AA contrast ratio */
+  }
+
+  /* Global focus ring logic: Only show focus ring for keyboard users */
+  *:focus {
+    outline: none !important;
+  }
+  *:focus-visible {
+    outline: 2px solid var(--accent-violet) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Remove number input spinners */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
   }
 
   body,
@@ -32,7 +51,7 @@
   select,
   textarea {
     transition-property: background-color, border-color, color, fill, stroke, box-shadow;
-    transition-duration: 300ms;
+    transition-duration: 200ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
