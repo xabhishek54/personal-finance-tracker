@@ -371,15 +371,18 @@ function AppContent() {
               <ChevronDown size={12} className="text-[var(--text-muted)]" />
             </button>
 
-            <button
-              onClick={() => navigate('/settings')}
-              aria-label="Settings"
-              className={`p-2 rounded-full transition-colors ${
-                isSettingsPage ? 'bg-[var(--accent-violet)] text-white' : 'bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
-              }`}
-            >
-              <Settings size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              <SyncIndicator />
+              <button
+                onClick={() => navigate('/settings')}
+                aria-label="Settings"
+                className={`p-2 rounded-xl transition-colors ${
+                  isSettingsPage ? 'bg-[var(--accent-violet)] text-white' : 'bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                }`}
+              >
+                <Settings size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Mobile Workspace Dropdown */}
@@ -520,7 +523,6 @@ export default function App() {
   return (
     <AuthProvider>
       <SyncWrapper>
-        <SyncIndicator />
         <Router>
           <PageTitleUpdater />
           <Routes>

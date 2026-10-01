@@ -21,6 +21,7 @@ import { parseISO } from 'date-fns';
 import { formatCurrency, formatDate, getGreeting } from '../utils/formatters';
 import { getCategoryIcon } from '../utils/categories';
 import CountUp from './CountUp';
+import SyncIndicator from './SyncIndicator';
 
 export default function Dashboard() {
   const { theme, toggleTheme, getSmartInsights, hasUnreadNotifications, markNotificationsRead } =
@@ -118,6 +119,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <SyncIndicator />
           <button
             onClick={toggleTheme}
             aria-label="Toggle theme"
