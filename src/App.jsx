@@ -19,7 +19,6 @@ import {
   ChevronDown,
   Edit2,
   Trash2,
-  Command,
 } from 'lucide-react';
 import { useFinanceStore } from './store/useFinanceStore';
 import { App as CapApp } from '@capacitor/app';
@@ -139,6 +138,7 @@ function AppContent() {
   } = useFinanceStore();
 
   const location = useLocation();
+  const navigate = useNavigate();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
@@ -227,7 +227,7 @@ function AppContent() {
   const navItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { id: 'logs', icon: ReceiptText, label: 'Transactions', path: '/logs' },
-    { id: 'budgets', icon: PieChart, label: 'Budgets & Analytics', path: '/budgets' },
+    { id: 'budgets', icon: PieChart, label: 'Budgets', path: '/budgets' },
     { id: 'debts', icon: HandCoins, label: 'Lend & Borrow', path: '/debts' },
     { id: 'settings', icon: Settings, label: 'Settings', path: '/settings' },
   ];
@@ -355,8 +355,8 @@ function AppContent() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden flex flex-col page-enter relative">
         <PullToRefresh onRefresh={handleRefresh}>
-          {/* Mobile Header Bar */}
-          <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--bg-surface-lit)] bg-[var(--bg-surface)]/95 backdrop-blur-md z-[80] sticky top-0">
+          {/* Mobile Header Bar with Mode Switcher & Settings Icon */}
+          <div className="lg:hidden flex items-center justify-between px-4 py-2.5 border-b border-[var(--bg-surface-lit)] bg-[var(--bg-surface)]/95 backdrop-blur-md z-[80] sticky top-0">
             <button
               onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
               aria-label="Switch Mode"
@@ -371,14 +371,15 @@ function AppContent() {
               <ChevronDown size={12} className="text-[var(--text-muted)]" />
             </button>
 
-            {!isSettingsPage && (
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="px-3 py-1.5 bg-[var(--accent-violet)] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
-              >
-                <Plus size={14} /> Add
-              </button>
-            )}
+            <button
+              onClick={() => navigate('/settings')}
+              aria-label="Settings"
+              className={`p-2 rounded-full transition-colors ${
+                isSettingsPage ? 'bg-[var(--accent-violet)] text-white' : 'bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              <Settings size={18} />
+            </button>
           </div>
 
           {/* Mobile Workspace Dropdown */}
@@ -423,31 +424,68 @@ function AppContent() {
         </PullToRefresh>
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 w-full glass-nav flex items-center justify-around px-2 z-50 pb-safe">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.id}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 py-1 px-2.5 rounded-lg transition-colors duration-150 ${
-                isActive ? 'text-[var(--accent-violet)] font-bold' : 'text-[var(--text-muted)]'
-              }`
-            }
-          >
-            <item.icon size={18} />
-            <span className="text-[10px]">{item.label.split(' ')[0]}</span>
-          </NavLink>
-        ))}
-
-        <button
-          onClick={logout}
-          aria-label="Log Out"
-          className="flex flex-col items-center gap-1 py-1 px-2.5 rounded-lg transition-colors text-[var(--text-muted)] hover:text-[var(--status-red)]"
+      {/* Mobile Docked Bottom Navigation Bar with Docked Center '+' Button */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 w-full glass-nav flex items-center justify-around px-1 z-50 pb-safe border-t border-[var(--bg-surface-lit)]">
+        {/* Destination 1: Home */}
+        <NavLink
+          to="/"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition-colors ${
+              isActive ? 'text-[var(--accent-violet)] font-bold' : 'text-[var(--text-muted)]'
+            }`
+          }
         >
-          <LogOut size={18} />
-          <span className="text-[10px]">Exit</span>
+          <LayoutDashboard size={18} />
+          <span className="text-[11px] font-medium">Home</span>
+        </NavLink>
+
+        {/* Destination 2: Transactions */}
+        <NavLink
+          to="/logs"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition-colors ${
+              isActive ? 'text-[var(--accent-violet)] font-bold' : 'text-[var(--text-muted)]'
+            }`
+          }
+        >
+          <ReceiptText size={18} />
+          <span className="text-[11px] font-medium">Txns</span>
+        </NavLink>
+
+        {/* Docked Center Raised '+' Button */}
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          aria-label="Add Transaction"
+          className="w-12 h-12 -mt-4 bg-[var(--accent-violet)] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[var(--accent-glow)] active:scale-95 transition-transform shrink-0"
+        >
+          <Plus size={24} />
         </button>
+
+        {/* Destination 3: Budgets */}
+        <NavLink
+          to="/budgets"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition-colors ${
+              isActive ? 'text-[var(--accent-violet)] font-bold' : 'text-[var(--text-muted)]'
+            }`
+          }
+        >
+          <PieChart size={18} />
+          <span className="text-[11px] font-medium">Budgets</span>
+        </NavLink>
+
+        {/* Destination 4: Lend */}
+        <NavLink
+          to="/debts"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition-colors ${
+              isActive ? 'text-[var(--accent-violet)] font-bold' : 'text-[var(--text-muted)]'
+            }`
+          }
+        >
+          <HandCoins size={18} />
+          <span className="text-[11px] font-medium">Lend</span>
+        </NavLink>
       </nav>
 
       <AddTransactionModal

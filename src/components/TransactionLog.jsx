@@ -145,22 +145,22 @@ export default function TransactionLog() {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-[slideUp_180ms_ease-out] h-full pb-8">
-      <header className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5 animate-[slideUp_180ms_ease-out] h-full pb-8">
+      <header className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-main)]">
               Transactions
             </h1>
-            <p className="text-[var(--text-muted)] text-sm mt-0.5">
-              View, search, filter, and manage your full transaction ledger.
+            <p className="text-[var(--text-muted)] text-xs sm:text-sm mt-0.5">
+              Full transaction ledger. Tap any row to edit details.
             </p>
           </div>
           <button
             onClick={() => exportTransactionsToExcel(filteredTx, budgets)}
-            className="flex items-center gap-2 text-xs font-bold bg-[var(--status-green)]/10 text-[var(--status-green)] hover:bg-[var(--status-green)]/20 px-3.5 py-2 rounded-xl transition-colors shadow-sm"
+            className="flex items-center gap-1.5 text-xs font-bold bg-[var(--status-green)]/10 text-[var(--status-green)] hover:bg-[var(--status-green)]/20 px-3.5 py-2 rounded-xl transition-colors shadow-sm shrink-0"
           >
-            <Download size={15} /> Export
+            <Download size={14} /> Export
           </button>
         </div>
 
@@ -168,37 +168,37 @@ export default function TransactionLog() {
           <div className="relative flex-1">
             <Search
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-              size={17}
+              size={16}
             />
             <input
               type="text"
-              placeholder="Search merchants, categories, notes..."
+              placeholder="Search merchants, categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:border-[var(--accent-violet)] transition-colors text-sm text-[var(--text-main)]"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:border-[var(--accent-violet)] transition-colors text-xs sm:text-sm text-[var(--text-main)]"
             />
           </div>
           <div className="relative z-10" ref={filterRef}>
             <button
               onClick={() => setShowFilter(!showFilter)}
-              className={`surface-card px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-xs font-bold ${
+              className={`surface-card px-3.5 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 text-xs font-bold ${
                 showFilter ? 'bg-[var(--bg-surface-lit)] text-[var(--text-main)]' : 'hover:bg-[var(--bg-surface-lit)]'
               }`}
             >
-              <Filter size={16} />
+              <Filter size={15} />
               <span className="hidden sm:inline">Filters</span>
               <ChevronDown size={14} />
             </button>
             {showFilter && (
               <div className="absolute top-full right-0 mt-2 w-72 bg-[var(--bg-surface)] border border-[var(--bg-surface-lit)] rounded-2xl shadow-xl p-4 flex flex-col gap-4 animate-[popIn_150ms_ease-out]">
                 <div>
-                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5 block">
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">
                     Sort By
                   </label>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full bg-[var(--bg-surface-lit)] text-xs font-bold p-2.5 rounded-xl outline-none text-[var(--text-main)]"
+                    className="w-full bg-[var(--bg-surface-lit)] text-xs font-bold p-2 rounded-xl outline-none text-[var(--text-main)]"
                   >
                     <option>Date (Newest)</option>
                     <option>Date (Oldest)</option>
@@ -208,13 +208,13 @@ export default function TransactionLog() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5 block">
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">
                     Type
                   </label>
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full bg-[var(--bg-surface-lit)] text-xs font-bold p-2.5 rounded-xl outline-none text-[var(--text-main)]"
+                    className="w-full bg-[var(--bg-surface-lit)] text-xs font-bold p-2 rounded-xl outline-none text-[var(--text-main)]"
                   >
                     {['All', 'Expense', 'Income', 'Lend', 'Borrow'].map((t) => (
                       <option key={t}>{t}</option>
@@ -223,13 +223,13 @@ export default function TransactionLog() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5 block">
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">
                     Source / Merchant
                   </label>
                   <select
                     value={filterSource}
                     onChange={(e) => setFilterSource(e.target.value)}
-                    className="w-full bg-[var(--bg-surface-lit)] text-xs font-bold p-2.5 rounded-xl outline-none text-[var(--text-main)]"
+                    className="w-full bg-[var(--bg-surface-lit)] text-xs font-bold p-2 rounded-xl outline-none text-[var(--text-main)]"
                   >
                     <option value="All">All Sources</option>
                     {getUniqueMerchants().map((m) => (
@@ -272,23 +272,23 @@ export default function TransactionLog() {
 
       <div className="flex-1 overflow-y-auto min-h-[400px]">
         {selectedTxIds.size > 0 && (
-          <div className="flex justify-between items-center bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] p-3 rounded-2xl mb-4 animate-[popIn_150ms_ease-out]">
+          <div className="flex justify-between items-center bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] p-3 rounded-2xl mb-3 animate-[popIn_150ms_ease-out]">
             <span className="text-xs font-bold ml-2">
               {selectedTxIds.size} transaction{selectedTxIds.size > 1 ? 's' : ''} selected
             </span>
             <div className="flex gap-2">
               <div className="relative flex items-center">
                 <FolderInput
-                  size={15}
-                  className="absolute left-3 text-white z-10 pointer-events-none"
+                  size={14}
+                  className="absolute left-2.5 text-white z-10 pointer-events-none"
                 />
                 <select
                   onChange={handleMoveSelected}
                   defaultValue=""
-                  className="appearance-none bg-[var(--accent-violet)] text-white text-xs font-bold pl-8 pr-7 py-2 rounded-xl cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm outline-none border-none"
+                  className="appearance-none bg-[var(--accent-violet)] text-white text-xs font-bold pl-7 pr-6 py-1.5 rounded-xl cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm outline-none border-none"
                 >
                   <option value="" disabled>
-                    Move to Mode...
+                    Move Mode...
                   </option>
                   {workspaces
                     .filter((w) => w.id !== activeWorkspaceId)
@@ -300,14 +300,14 @@ export default function TransactionLog() {
                 </select>
                 <ChevronDown
                   size={12}
-                  className="absolute right-2.5 text-white pointer-events-none"
+                  className="absolute right-2 text-white pointer-events-none"
                 />
               </div>
               <button
                 onClick={handleDeleteSelected}
-                className="flex items-center gap-1.5 text-xs font-bold bg-[var(--status-red)] text-white px-3.5 py-2 rounded-xl active:scale-95 transition-transform shadow-sm"
+                className="flex items-center gap-1 text-xs font-bold bg-[var(--status-red)] text-white px-3 py-1.5 rounded-xl active:scale-95 transition-transform shadow-sm"
               >
-                <Trash2 size={15} /> <span className="hidden sm:inline">Delete</span>
+                <Trash2 size={14} /> <span>Delete</span>
               </button>
             </div>
           </div>
@@ -317,24 +317,25 @@ export default function TransactionLog() {
           {filteredTx.length > 0 ? (
             filteredTx.map((tx) => {
               const IconComp = getCategoryIcon(tx.category);
-              const title = tx.recipient && tx.recipient.trim() !== '' ? tx.recipient : tx.category;
+              const title = tx.recipient && tx.recipient.trim() !== '' && tx.recipient !== 'Unknown' ? tx.recipient : tx.category;
               const isIncomeOrBorrow = tx.type === 'Income' || tx.type === 'Borrow';
 
               return (
                 <div
                   key={tx.id}
-                  onDoubleClick={() => setEditingTx(tx)}
                   onClick={(e) => {
                     if (selectedTxIds.size > 0) {
                       handleToggleSelect(e, tx.id);
+                    } else {
+                      setEditingTx(tx);
                     }
                   }}
-                  className={`p-3.5 sm:p-4 flex items-center justify-between hover:bg-[var(--bg-surface-lit)]/50 transition-colors cursor-pointer group select-none ${
+                  className={`p-3.5 flex items-center justify-between hover:bg-[var(--bg-surface-lit)]/50 transition-colors cursor-pointer group select-none ${
                     selectedTxIds.has(tx.id) ? 'bg-[var(--accent-violet)]/10' : ''
                   }`}
-                  title="Click to select, double click to edit"
+                  title="Tap to edit"
                 >
-                  <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
+                  <div className="flex items-center gap-3 overflow-hidden">
                     <button
                       onClick={(e) => handleToggleSelect(e, tx.id)}
                       aria-label="Select transaction"
@@ -347,7 +348,7 @@ export default function TransactionLog() {
                       )}
                     </button>
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                         tx.type === 'Lend'
                           ? 'bg-indigo-500/10 text-indigo-500'
                           : tx.type === 'Borrow'
@@ -357,13 +358,13 @@ export default function TransactionLog() {
                               : 'bg-[var(--status-red)]/10 text-[var(--status-red)]'
                       }`}
                     >
-                      <IconComp size={18} />
+                      <IconComp size={17} />
                     </div>
                     <div className="overflow-hidden">
-                      <p className="font-semibold text-sm text-[var(--text-main)] group-hover:text-[var(--accent-violet)] transition-colors truncate">
+                      <p className="font-bold text-xs sm:text-sm text-[var(--text-main)] group-hover:text-[var(--accent-violet)] transition-colors truncate">
                         {title}
                       </p>
-                      <p className="text-xs text-[var(--text-muted)] truncate">
+                      <p className="text-[11px] text-[var(--text-muted)] truncate">
                         {tx.category} • {tx.method}
                       </p>
                     </div>
@@ -372,7 +373,7 @@ export default function TransactionLog() {
                   <div className="flex items-center gap-3 shrink-0 ml-3 text-right">
                     <div className="flex flex-col items-end">
                       <div
-                        className={`font-bold text-sm tabular-nums ${
+                        className={`font-bold text-xs sm:text-sm tabular-nums ${
                           isIncomeOrBorrow
                             ? 'text-[var(--status-green)]'
                             : tx.type === 'Lend'
@@ -385,32 +386,32 @@ export default function TransactionLog() {
                       <div className="text-[10px] text-[var(--text-muted)] mt-0.5 flex flex-col items-end">
                         <span>{formatDate(tx.date)}</span>
                         {tx.note && (
-                          <span className="opacity-80 max-w-[140px] truncate" title={tx.note}>
+                          <span className="opacity-80 max-w-[120px] truncate" title={tx.note}>
                             {tx.note}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1 transition-opacity">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingTx(tx);
                         }}
-                        title="Edit Transaction"
-                        aria-label="Edit Transaction"
+                        title="Edit"
+                        aria-label="Edit"
                         className="p-1.5 rounded-lg bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--accent-violet)] transition-colors"
                       >
-                        <Edit3 size={13} />
+                        <Edit3 size={14} />
                       </button>
                       <button
                         onClick={(e) => handleDelete(e, tx)}
-                        title="Delete Transaction"
-                        aria-label="Delete Transaction"
+                        title="Delete"
+                        aria-label="Delete"
                         className="p-1.5 rounded-lg bg-[var(--bg-surface-lit)] text-[var(--text-muted)] hover:text-[var(--status-red)] transition-colors"
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>

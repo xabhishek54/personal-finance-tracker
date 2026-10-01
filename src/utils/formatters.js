@@ -94,3 +94,23 @@ export const getGreeting = (date = new Date()) => {
   if (hours < 17) return 'Good Afternoon';
   return 'Good Evening';
 };
+
+/**
+ * Returns friendly relative time string (e.g. "2 min ago", "Just now", "1 hr ago").
+ */
+export const formatRelativeTime = (dateInput) => {
+  if (!dateInput) return 'Never';
+  const dateObj = new Date(dateInput);
+  if (isNaN(dateObj.getTime())) return 'Never';
+
+  const diffMs = Date.now() - dateObj.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+
+  if (diffSec < 45) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffHour < 24) return `${diffHour} hr ago`;
+  return formatDate(dateObj);
+};
+

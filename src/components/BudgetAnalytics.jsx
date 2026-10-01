@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   useFinanceStore,
   useFilteredTransactions,
@@ -17,7 +18,7 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts';
-import { Sparkles, BarChart2, PieChart as PieChartIcon, Save, CheckCircle2, Sliders } from 'lucide-react';
+import { Sparkles, BarChart2, PieChart as PieChartIcon, Save, Sliders, X, CheckCircle2 } from 'lucide-react';
 import { subMonths, format, parseISO } from 'date-fns';
 import { formatCurrency } from '../utils/formatters';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
@@ -26,13 +27,13 @@ export default function BudgetAnalytics() {
   const { getSmartInsights, updateWorkspaceSettings } = useFinanceStore();
   const workspaceSettings = useWorkspaceSettings();
   const { budgets: savedBudgets, useGlobalBudget: savedUseGlobal, globalBudgetLimit: savedGlobalLimit, budgetCycle } = workspaceSettings;
-  
+
   const transactions = useFilteredTransactions();
   const [chartType, setChartType] = useState('pie');
   const [trendDuration, setTrendDuration] = useState(6);
 
-  // Editable Budget State
-  const [isEditingBudgets, setIsEditingBudgets] = useState(false);
+  // Edit Allowances Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [useGlobalBudget, setUseGlobalBudget] = useState(savedUseGlobal || false);
   const [globalLimit, setGlobalLimit] = useState(savedGlobalLimit || 50000);
   const [categoryLimits, setCategoryLimits] = useState({});
@@ -41,7 +42,7 @@ export default function BudgetAnalytics() {
   useEffect(() => {
     setUseGlobalBudget(savedUseGlobal || false);
     setGlobalLimit(savedGlobalLimit || 50000);
-    
+
     const initialCat = {};
     EXPENSE_CATEGORIES.forEach((cat) => {
       initialCat[cat] = savedBudgets?.[cat]?.limit ?? 5000;
@@ -65,8 +66,8 @@ export default function BudgetAnalytics() {
     });
 
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
-    setIsEditingBudgets(false);
+    setTimeout(() => setSavedSuccess(false), 2000);
+    setIsEditModalOpen(false);
   };
 
   const now = new Date();
@@ -150,113 +151,90 @@ export default function BudgetAnalytics() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-main)]">
             Budgets & Analytics
           </h1>
-          <p className="text-[var(--text-muted)] text-sm mt-0.5">
-            Manage your monthly spending limits and view analytical trends.
+          <p className="text-[var(--text-muted)] text-xs sm:text-sm mt-0.5">
+            Track monthly spending caps versus actual limits.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsEditingBudgets(!isEditingBudgets)}
-            className="px-3.5 py-2 text-xs font-bold bg-[var(--accent-violet)] text-white rounded-xl shadow-sm hover:opacity-90 transition-opacity flex items-center gap-1.5"
-          >
-            <Sliders size={14} />
-            <span>{isEditingBudgets ? 'Close Limits Editor' : 'Edit Allowances'}</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setIsEditModalOpen(true)}
+          className="px-4 py-2.5 text-xs font-bold bg-[var(--accent-violet)] text-white rounded-xl shadow-sm hover:opacity-95 active:scale-95 transition-all flex items-center gap-1.5 shrink-0"
+        >
+          <Sliders size={14} />
+          <span>Edit Allowances</span>
+        </button>
       </header>
 
-      {/* Budget Allowance Setting Drawer / Card */}
-      <div className="surface-card p-5 rounded-2xl border border-[var(--bg-surface-lit)] flex flex-col gap-4">
-        <div className="flex items-center justify-between border-b border-[var(--bg-surface-lit)] pb-3">
-          <h2 className="text-base font-bold text-[var(--text-main)]">Monthly Budget Allowances</h2>
-          {savedSuccess && (
-            <span className="text-xs font-bold text-[var(--status-green)] flex items-center gap-1">
-              <CheckCircle2 size={14} /> Saved!
-            </span>
-          )}
-        </div>
+      {/* SECTION 1: Active Category Allowance Progress Bars (ON TOP) */}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--text-muted)]">
+          Category Spending vs Limits
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {EXPENSE_CATEGORIES.map((cat) => {
+            const limit = categoryLimits[cat] || 0;
+            const spent = cycleTxs
+              .filter((t) => t.type === 'Expense' && t.category === cat)
+              .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-surface-lit)]/40 rounded-xl">
-            <div>
-              <span className="font-semibold text-sm text-[var(--text-main)]">Use Overall Global Budget</span>
-              <p className="text-xs text-[var(--text-muted)]">Set one cap for all expenses instead of individual categories.</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={useGlobalBudget}
-              onChange={(e) => setUseGlobalBudget(e.target.checked)}
-              className="w-5 h-5 accent-[var(--accent-violet)] cursor-pointer"
-            />
-          </div>
+            if (limit === 0 && spent === 0) return null;
 
-          {useGlobalBudget ? (
-            <div className="flex flex-col gap-1.5 max-w-xs">
-              <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                Overall Limit (₹)
-              </label>
-              <input
-                type="number"
-                value={globalLimit}
-                onChange={(e) => setGlobalLimit(e.target.value)}
-                className="bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] rounded-xl px-4 py-2.5 text-sm font-bold tabular-nums text-[var(--text-main)] focus:outline-none"
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <div key={cat} className="flex flex-col gap-1 bg-[var(--bg-surface-lit)]/30 p-2.5 rounded-xl border border-[var(--bg-surface-lit)]">
-                  <label className="text-xs font-medium text-[var(--text-muted)] truncate">{cat}</label>
-                  <div className="flex items-center text-sm font-bold tabular-nums text-[var(--text-main)]">
-                    <span className="text-[var(--text-muted)] mr-1">₹</span>
-                    <input
-                      type="number"
-                      value={categoryLimits[cat] ?? 5000}
-                      onChange={(e) =>
-                        setCategoryLimits({
-                          ...categoryLimits,
-                          [cat]: e.target.value,
-                        })
-                      }
-                      className="w-full bg-transparent focus:outline-none tabular-nums font-bold"
-                    />
-                  </div>
+            const percentage = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+            const isWarning = percentage >= 80 && percentage < 100;
+            const isOver = percentage >= 100;
+
+            return (
+              <div key={cat} className="surface-card p-4 rounded-2xl flex flex-col gap-2 border border-[var(--bg-surface-lit)]">
+                <div className="flex justify-between items-center text-xs sm:text-sm">
+                  <span className="font-bold text-[var(--text-main)]">{cat}</span>
+                  <span className="tabular-nums font-medium text-[var(--text-muted)]">
+                    <strong className="text-[var(--text-main)]">{formatCurrency(spent)}</strong> / {formatCurrency(limit)}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
 
-          <div className="flex justify-end pt-2">
-            <button
-              onClick={handleSaveBudgets}
-              className="px-5 py-2.5 bg-[var(--accent-violet)] text-white text-xs font-bold rounded-xl shadow-md hover:opacity-95 transition-opacity flex items-center gap-2"
-            >
-              <Save size={15} />
-              <span>Save Budget Allowances</span>
-            </button>
+                {/* Progress Track: Amber at 80%, Red at 100% */}
+                <div className="h-2.5 w-full bg-[var(--bg-surface-lit)] rounded-full overflow-hidden relative">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${
+                      isOver
+                        ? 'bg-[var(--status-red)]'
+                        : isWarning
+                          ? 'bg-[var(--status-yellow)]'
+                          : 'bg-[var(--accent-violet)]'
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                  ></div>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-semibold text-[var(--text-muted)]">
+                  <span>{Math.round(percentage)}% used</span>
+                  {isOver && <span className="text-[var(--status-red)]">Limit Exceeded</span>}
+                  {isWarning && <span className="text-[var(--status-yellow)]">Near Limit (80%+)</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* AI Recommendation Banner */}
+      {meaningfulInsight && (
+        <div className="bg-gradient-to-br from-[var(--status-green)]/10 to-transparent border border-[var(--status-green)]/20 rounded-2xl p-4 flex flex-col gap-2 relative overflow-hidden">
+          <div className="flex items-center gap-2 text-[var(--status-green)]">
+            <Sparkles size={15} />
+            <h3 className="font-bold text-xs uppercase tracking-wider">Financial Insights</h3>
           </div>
+          <p className="text-xs sm:text-sm text-[var(--text-main)] leading-relaxed relative z-10 font-medium">
+            {meaningfulInsight}. Consider allocating leftover budget into an emergency savings pool.
+          </p>
         </div>
-      </div>
+      )}
 
-      {/* AI Recommendation */}
-      <div className="bg-gradient-to-br from-[var(--status-green)]/10 to-transparent border border-[var(--status-green)]/20 rounded-2xl p-4 sm:p-5 flex flex-col gap-2 relative overflow-hidden">
-        <div className="flex items-center gap-2 text-[var(--status-green)]">
-          <Sparkles size={16} />
-          <h3 className="font-bold text-xs uppercase tracking-wider">Financial Insights</h3>
-        </div>
-        <p className="text-xs sm:text-sm text-[var(--text-main)] leading-relaxed relative z-10 font-medium">
-          {meaningfulInsight
-            ? `${meaningfulInsight}. Consider allocating leftover budget into an emergency savings pool.`
-            : 'Add a few more transactions to receive tailored budget recommendations.'}
-        </p>
-      </div>
-
-      {/* Analytics Charts Row */}
+      {/* SECTION 2: Analytics Charts (BELOW PROGRESS BARS) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Category Distribution Chart */}
-        <div className="surface-card p-5 rounded-2xl flex flex-col gap-4">
+        <div className="surface-card p-5 rounded-2xl flex flex-col gap-4 border border-[var(--bg-surface-lit)]">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
               Spending Distribution
             </h2>
             <div className="flex bg-[var(--bg-surface-lit)] p-1 rounded-xl">
@@ -341,9 +319,9 @@ export default function BudgetAnalytics() {
         </div>
 
         {/* Historical Monthly Trend Bar Chart */}
-        <div className="surface-card p-5 rounded-2xl flex flex-col gap-4">
+        <div className="surface-card p-5 rounded-2xl flex flex-col gap-4 border border-[var(--bg-surface-lit)]">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
               Monthly Trend
             </h2>
             <select
@@ -381,55 +359,100 @@ export default function BudgetAnalytics() {
         </div>
       </div>
 
-      {/* Category Allowance Progress Bars Grid */}
-      <div className="flex flex-col gap-3">
-        <h2 className="text-base font-bold text-[var(--text-main)]">Active Category Allowances</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {EXPENSE_CATEGORIES.map((cat) => {
-            const limit = categoryLimits[cat] || 0;
-            const spent = cycleTxs
-              .filter((t) => t.type === 'Expense' && t.category === cat)
-              .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-            if (limit === 0 && spent === 0) return null;
-
-            const percentage = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-            const isWarning = percentage >= 80 && percentage < 100;
-            const isOver = percentage >= 100;
-
-            return (
-              <div key={cat} className="surface-card p-4 rounded-2xl flex flex-col gap-2">
-                <div className="flex justify-between items-center text-xs sm:text-sm">
-                  <span className="font-bold text-[var(--text-main)]">{cat}</span>
-                  <span className="tabular-nums font-medium text-[var(--text-muted)]">
-                    <strong className="text-[var(--text-main)]">{formatCurrency(spent)}</strong> / {formatCurrency(limit)}
-                  </span>
-                </div>
-
-                {/* Progress Track */}
-                <div className="h-2.5 w-full bg-[var(--bg-surface-lit)] rounded-full overflow-hidden relative">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ease-out ${
-                      isOver
-                        ? 'bg-[var(--status-red)]'
-                        : isWarning
-                          ? 'bg-[var(--status-yellow)]'
-                          : 'bg-[var(--accent-violet)]'
-                    }`}
-                    style={{ width: `${percentage}%` }}
-                  ></div>
-                </div>
-
-                <div className="flex justify-between items-center text-[10px] font-semibold text-[var(--text-muted)]">
-                  <span>{Math.round(percentage)}% used</span>
-                  {isOver && <span className="text-[var(--status-red)]">Limit Exceeded</span>}
-                  {isWarning && <span className="text-[var(--status-yellow)]">Near Limit</span>}
-                </div>
+      {/* Edit Allowances Modal Drawer */}
+      {isEditModalOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-md animate-[popIn_150ms_ease-out]"
+            onClick={() => setIsEditModalOpen(false)}
+          >
+            <div
+              className="bg-[var(--bg-surface)] w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 px-6 flex justify-between items-center border-b border-[var(--bg-surface-lit)] shrink-0">
+                <h2 className="text-base font-bold text-[var(--text-main)]">Edit Monthly Allowances</h2>
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  aria-label="Close"
+                  className="p-1.5 rounded-xl hover:bg-[var(--bg-surface-lit)] text-[var(--text-muted)]"
+                >
+                  <X size={18} />
+                </button>
               </div>
-            );
-          })}
-        </div>
-      </div>
+
+              <div className="p-6 overflow-y-auto flex flex-col gap-5">
+                {/* Global Budget Toggle */}
+                <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-surface-lit)]/40 rounded-2xl border border-[var(--bg-surface-lit)]">
+                  <div>
+                    <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Use Overall Global Budget Cap</span>
+                    <p className="text-[11px] text-[var(--text-muted)]">Set one overall limit instead of category limits.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUseGlobalBudget(!useGlobalBudget)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      useGlobalBudget ? 'bg-[var(--accent-violet)]' : 'bg-zinc-600 dark:bg-zinc-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        useGlobalBudget ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {useGlobalBudget ? (
+                  <div className="flex flex-col gap-1.5 max-w-xs">
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                      Overall Monthly Cap (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={globalLimit}
+                      onChange={(e) => setGlobalLimit(e.target.value)}
+                      className="bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] rounded-xl px-4 py-2.5 text-sm font-extrabold tabular-nums text-[var(--text-main)] outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {EXPENSE_CATEGORIES.map((cat) => (
+                      <div key={cat} className="flex flex-col gap-1 bg-[var(--bg-surface-lit)]/40 p-2.5 rounded-xl border border-[var(--bg-surface-lit)]">
+                        <label className="text-xs font-semibold text-[var(--text-muted)] truncate">{cat}</label>
+                        <div className="flex items-center text-sm font-extrabold tabular-nums text-[var(--text-main)]">
+                          <span className="text-[var(--text-muted)] mr-1">₹</span>
+                          <input
+                            type="number"
+                            value={categoryLimits[cat] ?? 5000}
+                            onChange={(e) =>
+                              setCategoryLimits({
+                                ...categoryLimits,
+                                [cat]: e.target.value,
+                              })
+                            }
+                            className="w-full bg-transparent focus:outline-none tabular-nums font-extrabold text-sm"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 px-6 border-t border-[var(--bg-surface-lit)] bg-[var(--bg-surface)] shrink-0 flex justify-end">
+                <button
+                  onClick={handleSaveBudgets}
+                  className="w-full sm:w-auto px-6 py-3 bg-[var(--accent-violet)] text-white text-xs font-bold rounded-xl shadow-md hover:opacity-95 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Save size={15} />
+                  <span>Save Allowances</span>
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

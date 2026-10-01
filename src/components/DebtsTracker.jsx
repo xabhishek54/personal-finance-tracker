@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useFinanceStore, useFilteredTransactions } from '../store/useFinanceStore';
-import { User, CheckCircle2, RotateCcw, HandCoins } from 'lucide-react';
+import { User, CheckCircle2, HandCoins } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 const capitalizeName = (str) => {
@@ -35,7 +35,7 @@ export default function DebtsTracker() {
   });
 
   return (
-    <div className="flex flex-col gap-6 animate-[slideUp_180ms_ease-out] h-full pb-8">
+    <div className="flex flex-col gap-5 animate-[slideUp_180ms_ease-out] h-full pb-8">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-main)]">
           Lend & Borrow
@@ -45,28 +45,28 @@ export default function DebtsTracker() {
         </p>
       </header>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="surface-card p-5 rounded-2xl flex flex-col gap-1.5 border border-[var(--bg-surface-lit)]">
-          <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+      {/* Summary Cards: Green for Owed to You, Red for You Owe */}
+      <div className="grid grid-cols-2 gap-3.5">
+        <div className="surface-card p-4 rounded-2xl flex flex-col gap-1 border border-[var(--bg-surface-lit)]">
+          <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
             Owed to You (Lent)
           </span>
-          <span className="text-2xl font-extrabold tabular-nums text-indigo-500">
+          <span className="text-xl sm:text-2xl font-extrabold tabular-nums text-[var(--status-green)]">
             {formatCurrency(pendingLent)}
           </span>
         </div>
-        <div className="surface-card p-5 rounded-2xl flex flex-col gap-1.5 border border-[var(--bg-surface-lit)]">
-          <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+        <div className="surface-card p-4 rounded-2xl flex flex-col gap-1 border border-[var(--bg-surface-lit)]">
+          <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
             You Owe (Borrowed)
           </span>
-          <span className="text-2xl font-extrabold tabular-nums text-purple-500">
+          <span className="text-xl sm:text-2xl font-extrabold tabular-nums text-[var(--status-red)]">
             {formatCurrency(pendingBorrowed)}
           </span>
         </div>
       </div>
 
       {/* Filter Tabs & History Section */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-1.5 bg-[var(--bg-surface-lit)] p-1 rounded-2xl overflow-x-auto">
           {[
             { id: 'all', label: 'All Records' },
@@ -77,7 +77,7 @@ export default function DebtsTracker() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
+              className={`px-3 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-[var(--bg-surface)] text-[var(--text-main)] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
@@ -97,17 +97,17 @@ export default function DebtsTracker() {
               return (
                 <div
                   key={tx.id}
-                  className={`p-4 flex items-center justify-between transition-colors ${
+                  className={`p-3.5 sm:p-4 flex items-center justify-between transition-colors ${
                     tx.settled ? 'opacity-60 bg-[var(--bg-surface-lit)]/20' : 'hover:bg-[var(--bg-surface-lit)]/40'
                   }`}
                 >
-                  <div className="flex items-center gap-3.5 overflow-hidden">
+                  <div className="flex items-center gap-3 overflow-hidden">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        isLend ? 'bg-indigo-500/10 text-indigo-500' : 'bg-purple-500/10 text-purple-500'
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        isLend ? 'bg-[var(--status-green)]/10 text-[var(--status-green)]' : 'bg-[var(--status-red)]/10 text-[var(--status-red)]'
                       }`}
                     >
-                      <User size={18} />
+                      <User size={17} />
                     </div>
                     <div className="overflow-hidden">
                       <p className="font-bold text-sm text-[var(--text-main)] truncate">
@@ -122,7 +122,7 @@ export default function DebtsTracker() {
                   <div className="flex items-center gap-3 shrink-0 ml-3">
                     <div
                       className={`font-extrabold text-sm tabular-nums ${
-                        isLend ? 'text-indigo-500' : 'text-purple-500'
+                        isLend ? 'text-[var(--status-green)]' : 'text-[var(--status-red)]'
                       }`}
                     >
                       {formatCurrency(tx.amount)}
@@ -130,7 +130,7 @@ export default function DebtsTracker() {
                     {!tx.settled ? (
                       <button
                         onClick={() => markAsSettled(tx.id)}
-                        className="p-2 bg-[var(--bg-surface-lit)] rounded-xl text-[var(--text-muted)] hover:text-[var(--status-green)] hover:bg-[var(--status-green)]/10 transition-colors"
+                        className="p-1.5 bg-[var(--bg-surface-lit)] rounded-xl text-[var(--text-muted)] hover:text-[var(--status-green)] hover:bg-[var(--status-green)]/10 transition-colors"
                         title="Mark as Settled"
                         aria-label="Mark as Settled"
                       >

@@ -11,15 +11,16 @@ import {
   Download,
   Smartphone,
   ShieldCheck,
-  CheckCircle2,
   Trash2,
+  LogOut,
 } from 'lucide-react';
 import ClearDataModal from './ClearDataModal';
 import SecurityAuthModal from './SecurityAuthModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import PinSetupModal from './Auth/PinSetupModal';
+import ConfirmModal from './ConfirmModal';
 import { exportToCSV } from '../utils/exportCsv';
-import { formatDate } from '../utils/formatters';
+import { formatRelativeTime } from '../utils/formatters';
 
 export default function SettingsPage() {
   const {
@@ -42,7 +43,7 @@ export default function SettingsPage() {
   const activeWorkspaceId = useFinanceStore((state) => state.activeWorkspaceId);
   const { includeLendBorrow, budgetCycle } = workspaceSettings?.[activeWorkspaceId] || {};
 
-  const { hasPinSetup } = useAuth();
+  const { hasPinSetup, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('sync');
 
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -50,9 +51,7 @@ export default function SettingsPage() {
   const [showDisableSecurityAuth, setShowDisableSecurityAuth] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [showPinAuth, setShowPinAuth] = useState(false);
-  const [isBiometricEnabled, setIsBiometricEnabled] = useState(
-    () => localStorage.getItem('finance_biometric_enabled') === 'true'
-  );
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleSecurityToggle = (checked) => {
     if (!checked && requirePasswordForDelete) {
@@ -63,101 +62,80 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-[slideUp_180ms_ease-out] h-full pb-8">
+    <div className="flex flex-col gap-5 animate-[slideUp_180ms_ease-out] h-full pb-8">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-main)] flex items-center gap-2.5">
-          <Settings2 size={26} className="text-[var(--accent-violet)]" /> Settings
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-main)] flex items-center gap-2">
+          <Settings2 size={24} className="text-[var(--accent-violet)]" /> Settings
         </h1>
-        <p className="text-[var(--text-muted)] text-sm">
-          Manage cloud synchronization, app preferences, security, and data backups.
+        <p className="text-[var(--text-muted)] text-xs sm:text-sm">
+          Manage cloud sync, general preferences, security, and data backup.
         </p>
       </header>
 
-      {/* Settings Navigation Tabs */}
-      <div className="flex items-center gap-1.5 bg-[var(--bg-surface-lit)] p-1 rounded-2xl overflow-x-auto">
+      {/* Exactly 3 Navigation Tabs (Fits on 1 line without scrolling or clipping) */}
+      <div className="grid grid-cols-3 gap-1 bg-[var(--bg-surface-lit)] p-1 rounded-2xl">
         {[
-          { id: 'sync', label: 'Sync & Data Export', icon: RefreshCw },
-          { id: 'preferences', label: 'App Preferences', icon: SlidersHorizontal },
-          { id: 'security', label: 'Security & PIN', icon: Lock },
-          { id: 'danger', label: 'Danger Zone', icon: Trash2 },
+          { id: 'sync', label: 'Sync & Export', icon: RefreshCw },
+          { id: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
+          { id: 'security', label: 'Security & Data', icon: Lock },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
+            className={`py-2 px-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-[var(--bg-surface)] text-[var(--text-main)] shadow-sm'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
             }`}
           >
-            <tab.icon size={15} />
-            <span>{tab.label}</span>
+            <tab.icon size={14} />
+            <span className="truncate">{tab.label}</span>
           </button>
         ))}
       </div>
 
       {/* TAB 1: SYNC & DATA EXPORT */}
       {activeTab === 'sync' && (
-        <div className="flex flex-col gap-6 animate-[slideUp_150ms_ease-out]">
-          <div className="surface-card p-6 rounded-2xl flex flex-col gap-6 border border-[var(--bg-surface-lit)]">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--bg-surface-lit)] pb-4">
+        <div className="flex flex-col gap-5 animate-[slideUp_150ms_ease-out]">
+          <div className="surface-card p-4 sm:p-5 rounded-2xl flex flex-col gap-4 border border-[var(--bg-surface-lit)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--bg-surface-lit)] pb-3">
               <div>
-                <h2 className="text-base font-bold text-[var(--text-main)]">Cloud Sync Engine</h2>
+                <h2 className="text-sm font-bold text-[var(--text-main)]">Cloud Sync Engine</h2>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Synchronize your financial data safely with your private Supabase database.
+                  Synchronize financial data safely with your private cloud account.
                 </p>
               </div>
 
               <button
                 onClick={() => syncWithSupabase()}
                 disabled={isSyncing}
-                className="px-4 py-2.5 rounded-xl bg-[var(--accent-violet)] text-white text-xs font-bold flex items-center gap-2 shadow-md hover:opacity-95 active:scale-95 transition-all disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl bg-[var(--accent-violet)] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:opacity-95 active:scale-95 transition-all disabled:opacity-50 shrink-0"
               >
-                <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
+                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
                 <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
               </button>
             </div>
 
-            {/* Sync Status Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-xl bg-[var(--bg-surface-lit)]/50 border border-[var(--bg-surface-lit)] flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-bold">Network Connection</span>
-                <div className="flex items-center gap-2 font-bold text-xs mt-1">
-                  {navigator.onLine ? (
-                    <>
-                      <Cloud size={16} className="text-[var(--status-green)]" />
-                      <span className="text-[var(--status-green)]">Connected & Live</span>
-                    </>
-                  ) : (
-                    <>
-                      <CloudOff size={16} className="text-[var(--status-red)]" />
-                      <span className="text-[var(--status-red)]">Offline Mode</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[var(--bg-surface-lit)]/50 border border-[var(--bg-surface-lit)] flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-bold">Last Successful Sync</span>
-                <span className="text-xs font-bold mt-1 text-[var(--text-main)]">
-                  {lastSyncedAt ? formatDate(lastSyncedAt) : 'Not synced yet'}
-                </span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[var(--bg-surface-lit)]/50 border border-[var(--bg-surface-lit)] flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-bold">Pending Sync Changes</span>
-                <span className="text-xs font-bold mt-1 text-[var(--accent-violet)]">
-                  {pendingSyncCount === 0 ? 'All synced' : `${pendingSyncCount} pending change(s)`}
+            {/* Compressed Mobile Sync Status Row */}
+            <div className="p-3 rounded-xl bg-[var(--bg-surface-lit)]/50 border border-[var(--bg-surface-lit)] flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 overflow-hidden text-[var(--text-main)] font-semibold">
+                {navigator.onLine ? (
+                  <Cloud size={16} className="text-[var(--status-green)] shrink-0" />
+                ) : (
+                  <CloudOff size={16} className="text-[var(--status-red)] shrink-0" />
+                )}
+                <span className="truncate">
+                  {navigator.onLine ? 'Connected' : 'Offline'} • Synced {formatRelativeTime(lastSyncedAt)} • {pendingSyncCount} pending
                 </span>
               </div>
             </div>
 
-            {/* High-Contrast Auto-Sync Toggle */}
-            <div className="flex items-center justify-between pt-3 border-t border-[var(--bg-surface-lit)]">
+            {/* High-Contrast Auto-Sync Toggle (Defaults to ON) */}
+            <div className="flex items-center justify-between pt-2 border-t border-[var(--bg-surface-lit)]">
               <div>
-                <span className="font-bold text-sm text-[var(--text-main)]">Automatic Background Sync</span>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Automatically sync local edits whenever your network connects.
+                <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Automatic Background Sync</span>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  Sync edits automatically whenever connected.
                 </p>
               </div>
 
@@ -178,39 +156,38 @@ export default function SettingsPage() {
           </div>
 
           {/* Data Export (CSV Backup) */}
-          <div className="surface-card p-6 rounded-2xl flex flex-col gap-4 border border-[var(--bg-surface-lit)]">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--bg-surface-lit)] pb-4">
+          <div className="surface-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3 border border-[var(--bg-surface-lit)]">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-bold text-[var(--text-main)]">Data Backup & Export (CSV)</h2>
+                <h2 className="text-sm font-bold text-[var(--text-main)]">Data Backup & Export (CSV)</h2>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Export all your transactions, categories, and payment notes into standard CSV spreadsheet format.
+                  Export transactions into standard CSV spreadsheet format.
                 </p>
               </div>
               <button
                 onClick={() => exportToCSV(transactions, `personal_finance_export_${Date.now()}.csv`)}
-                className="px-4 py-2.5 rounded-xl bg-[var(--status-green)] text-white text-xs font-bold flex items-center gap-2 shadow-md hover:opacity-95 active:scale-95 transition-all shrink-0"
+                className="px-3.5 py-2 rounded-xl bg-[var(--status-green)] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:opacity-95 active:scale-95 transition-all shrink-0"
               >
-                <Download size={15} />
-                <span>Export CSV File</span>
+                <Download size={14} />
+                <span>Export CSV</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: APP PREFERENCES */}
+      {/* TAB 2: PREFERENCES */}
       {activeTab === 'preferences' && (
-        <div className="surface-card p-6 rounded-2xl flex flex-col gap-6 border border-[var(--bg-surface-lit)] animate-[slideUp_150ms_ease-out]">
-          <h2 className="text-base font-bold text-[var(--text-main)] border-b border-[var(--bg-surface-lit)] pb-3">
-            General App Preferences
+        <div className="surface-card p-4 sm:p-5 rounded-2xl flex flex-col gap-5 border border-[var(--bg-surface-lit)] animate-[slideUp_150ms_ease-out]">
+          <h2 className="text-sm font-bold text-[var(--text-main)] border-b border-[var(--bg-surface-lit)] pb-3">
+            General Preferences
           </h2>
 
-          {/* Include Lend / Borrow Toggle */}
           <div className="flex items-center justify-between gap-4">
             <div className="max-w-md">
-              <span className="font-bold text-sm text-[var(--text-main)]">Include Lend / Borrow in Totals</span>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                When enabled, money lent will count towards Expenses, and money borrowed will count as Income on Dashboard totals.
+              <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Include Lend / Borrow in Totals</span>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                Money lent counts as Expense, and money borrowed as Income.
               </p>
             </div>
 
@@ -229,16 +206,15 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Budget Reset Cycle */}
-          <div className="flex flex-col gap-2 max-w-sm pt-4 border-t border-[var(--bg-surface-lit)]">
-            <span className="font-bold text-sm text-[var(--text-main)]">Dashboard Stats Reset Cycle</span>
-            <p className="text-xs text-[var(--text-muted)]">
-              Specify how frequently your monthly spending totals reset.
+          <div className="flex flex-col gap-2 pt-3 border-t border-[var(--bg-surface-lit)] max-w-sm">
+            <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Dashboard Stats Reset Cycle</span>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              Specify how frequently monthly totals reset.
             </p>
             <select
               value={budgetCycle || '1 month'}
               onChange={(e) => setBudgetCycle(e.target.value)}
-              className="mt-1 p-3 rounded-xl bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] font-bold text-xs text-[var(--text-main)] outline-none"
+              className="mt-1 p-2.5 rounded-xl bg-[var(--bg-surface-lit)] border border-transparent focus:border-[var(--accent-violet)] font-bold text-xs text-[var(--text-main)] outline-none"
             >
               <option value="1 month">Every Month</option>
               <option value="2 months">Every 2 Months</option>
@@ -249,36 +225,35 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* TAB 3: SECURITY & PIN */}
+      {/* TAB 3: SECURITY & DATA (Includes Password, PIN, Biometrics, Danger Zone, and Account Logout) */}
       {activeTab === 'security' && (
-        <div className="flex flex-col gap-6 animate-[slideUp_150ms_ease-out]">
-          <div className="surface-card p-6 rounded-2xl flex flex-col gap-6 border border-[var(--bg-surface-lit)]">
-            <h2 className="text-base font-bold text-[var(--text-main)] border-b border-[var(--bg-surface-lit)] pb-3 flex items-center gap-2">
-              <ShieldCheck size={18} className="text-[var(--accent-violet)]" /> Account Password & Deletion Lock
+        <div className="flex flex-col gap-5 animate-[slideUp_150ms_ease-out]">
+          {/* Account & Password Section */}
+          <div className="surface-card p-4 sm:p-5 rounded-2xl flex flex-col gap-4 border border-[var(--bg-surface-lit)]">
+            <h2 className="text-sm font-bold text-[var(--text-main)] border-b border-[var(--bg-surface-lit)] pb-3 flex items-center gap-2">
+              <ShieldCheck size={16} className="text-[var(--accent-violet)]" /> Account Security
             </h2>
 
-            {/* Change Password */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <span className="font-bold text-sm text-[var(--text-main)]">Account Password</span>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Update your Supabase authentication password.
+                <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Account Password</span>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  Update your cloud sign-in password.
                 </p>
               </div>
               <button
                 onClick={() => setIsPasswordModalOpen(true)}
-                className="px-4 py-2 text-xs font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors shrink-0"
+                className="px-3.5 py-2 text-xs font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors shrink-0"
               >
                 Change Password
               </button>
             </div>
 
-            {/* Require Password for Deletion Toggle */}
-            <div className="flex items-center justify-between pt-4 border-t border-[var(--bg-surface-lit)]">
+            <div className="flex items-center justify-between pt-3 border-t border-[var(--bg-surface-lit)]">
               <div>
-                <span className="font-bold text-sm text-[var(--text-main)]">Require Password on Transaction Delete</span>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Prompts for account password before deleting any transaction log.
+                <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Require Password on Delete</span>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  Prompt for password before erasing any transaction.
                 </p>
               </div>
 
@@ -298,17 +273,17 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* App Login PIN Security */}
-          <div className="surface-card p-6 rounded-2xl flex flex-col gap-6 border border-[var(--bg-surface-lit)]">
-            <h2 className="text-base font-bold text-[var(--text-main)] border-b border-[var(--bg-surface-lit)] pb-3">
-              App PIN Lock
+          {/* PIN Security & Biometrics */}
+          <div className="surface-card p-4 sm:p-5 rounded-2xl flex flex-col gap-4 border border-[var(--bg-surface-lit)]">
+            <h2 className="text-sm font-bold text-[var(--text-main)] border-b border-[var(--bg-surface-lit)] pb-3">
+              PIN Lock & Biometrics
             </h2>
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <span className="font-bold text-sm text-[var(--text-main)]">4-Digit PIN Security</span>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Require a security PIN to unlock your financial data.
+                <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">4-Digit App PIN</span>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  Require PIN code to open app.
                 </p>
               </div>
               <button
@@ -319,23 +294,22 @@ export default function SettingsPage() {
                     setIsPinModalOpen(true);
                   }
                 }}
-                className="px-4 py-2 text-xs font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors shrink-0"
+                className="px-3.5 py-2 text-xs font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors shrink-0"
               >
-                {hasPinSetup ? 'Change / Remove PIN' : 'Setup PIN'}
+                {hasPinSetup ? 'Change PIN' : 'Setup PIN'}
               </button>
             </div>
 
-            {/* Fingerprint Toggle with Mobile Badge */}
-            <div className="flex items-center justify-between pt-4 border-t border-[var(--bg-surface-lit)]">
+            <div className="flex items-center justify-between pt-3 border-t border-[var(--bg-surface-lit)]">
               <div>
-                <span className="font-bold text-sm text-[var(--text-main)] flex items-center gap-2">
-                  <Smartphone size={16} /> Fingerprint / Biometrics
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500">
+                <span className="font-bold text-xs sm:text-sm text-[var(--text-main)] flex items-center gap-1.5">
+                  <Smartphone size={15} /> Fingerprint Sensor
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500">
                     Mobile App Only
                   </span>
                 </span>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Use native mobile biometric sensor to unlock. (Disabled on desktop web browsers).
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  Disabled on web browsers.
                 </p>
               </div>
 
@@ -348,28 +322,41 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* TAB 4: DANGER ZONE */}
-      {activeTab === 'danger' && (
-        <div className="surface-card p-6 rounded-2xl flex flex-col gap-6 border border-[var(--status-red)]/30 bg-gradient-to-br from-[var(--status-red)]/5 to-transparent animate-[slideUp_150ms_ease-out]">
-          <h2 className="text-base font-bold text-[var(--status-red)] border-b border-[var(--status-red)]/20 pb-3 flex items-center gap-2">
-            <Trash2 size={18} /> Danger Zone
-          </h2>
+          {/* Danger Zone (Erasing Data) */}
+          <div className="surface-card p-4 sm:p-5 rounded-2xl flex flex-col gap-3 border border-[var(--status-red)]/30 bg-gradient-to-br from-[var(--status-red)]/5 to-transparent">
+            <h2 className="text-sm font-bold text-[var(--status-red)] flex items-center gap-1.5">
+              <Trash2 size={16} /> Danger Zone
+            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Erase Transaction History</span>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  Permanently delete records from local and cloud storage.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsClearModalOpen(true)}
+                className="px-3.5 py-2 text-xs font-bold bg-[var(--status-red)] text-white rounded-xl shadow-sm hover:opacity-95 transition-opacity shrink-0"
+              >
+                Clear Data...
+              </button>
+            </div>
+          </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="max-w-md">
-              <span className="font-bold text-sm text-[var(--text-main)]">Erase Transaction History</span>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                Permanently erase selected transaction records from local storage and Supabase cloud database.
+          {/* Log Out Button in Account Section */}
+          <div className="surface-card p-4 rounded-2xl border border-[var(--bg-surface-lit)] flex items-center justify-between">
+            <div>
+              <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">Account Sign Out</span>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                Sign out of your active session safely.
               </p>
             </div>
             <button
-              onClick={() => setIsClearModalOpen(true)}
-              className="px-4 py-2.5 text-xs font-bold bg-[var(--status-red)] text-white rounded-xl shadow-md hover:opacity-95 transition-opacity shrink-0"
+              onClick={() => setShowLogoutConfirm(true)}
+              className="px-4 py-2 text-xs font-bold bg-[var(--status-red)]/10 text-[var(--status-red)] hover:bg-[var(--status-red)] hover:text-white rounded-xl transition-colors flex items-center gap-1.5 shrink-0"
             >
-              Clear Data...
+              <LogOut size={14} /> Log Out
             </button>
           </div>
         </div>
@@ -394,6 +381,15 @@ export default function SettingsPage() {
         onSuccess={() => setIsPinModalOpen(true)}
         title="Verify Identity"
         message="Please enter your password to change or remove your PIN."
+      />
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Log Out of Account?"
+        description="Are you sure you want to log out of your finance tracker account?"
+        confirmText="Log Out"
+        confirmStyle="danger"
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={logout}
       />
     </div>
   );
