@@ -43,14 +43,14 @@ export default function SettingsPage() {
   const activeWorkspaceId = useFinanceStore((state) => state.activeWorkspaceId);
   const { includeLendBorrow, budgetCycle } = workspaceSettings?.[activeWorkspaceId] || {};
 
-  const { hasPinSetup, logout } = useAuth();
+  const { hasPinSetup, removePin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('sync');
 
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [showDisableSecurityAuth, setShowDisableSecurityAuth] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [showPinAuth, setShowPinAuth] = useState(false);
+  const [showDisablePinConfirm, setShowDisablePinConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleSecurityToggle = (checked) => {
@@ -283,21 +283,27 @@ export default function SettingsPage() {
               <div>
                 <span className="font-bold text-xs sm:text-sm text-[var(--text-main)]">4-Digit App PIN</span>
                 <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                  Require PIN code to open app.
+                  {hasPinSetup ? 'PIN protection is active.' : 'Require PIN code to open app.'}
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  if (hasPinSetup) {
-                    setShowPinAuth(true);
-                  } else {
-                    setIsPinModalOpen(true);
-                  }
-                }}
-                className="px-3.5 py-2 text-xs font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors shrink-0"
-              >
-                {hasPinSetup ? 'Change PIN' : 'Setup PIN'}
-              </button>
+              <div className="flex items-center gap-2">
+                {hasPinSetup && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDisablePinConfirm(true)}
+                    className="px-3 py-2 text-xs font-bold text-[var(--status-red)] bg-[var(--status-red)]/10 hover:bg-[var(--status-red)]/20 rounded-xl transition-colors shrink-0"
+                  >
+                    Disable PIN
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsPinModalOpen(true)}
+                  className="px-3.5 py-2 text-xs font-bold bg-[var(--bg-surface-lit)] hover:bg-[var(--accent-violet)] hover:text-white rounded-xl transition-colors shrink-0"
+                >
+                  {hasPinSetup ? 'Change PIN' : 'Setup PIN'}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-[var(--bg-surface-lit)]">
@@ -375,12 +381,14 @@ export default function SettingsPage() {
         title="Disable Security Feature"
         message="Please enter your password to disable transaction deletion security."
       />
-      <SecurityAuthModal
-        isOpen={showPinAuth}
-        onClose={() => setShowPinAuth(false)}
-        onSuccess={() => setIsPinModalOpen(true)}
-        title="Verify Identity"
-        message="Please enter your password to change or remove your PIN."
+      <ConfirmModal
+        isOpen={showDisablePinConfirm}
+        title="Disable PIN Protection?"
+        description="Anyone with access to this device will be able to open the app without entering a 4-digit PIN code."
+        confirmText="Disable PIN"
+        confirmStyle="danger"
+        onClose={() => setShowDisablePinConfirm(false)}
+        onConfirm={removePin}
       />
       <ConfirmModal
         isOpen={showLogoutConfirm}
