@@ -56,8 +56,8 @@ export default function ClearDataModal({ isOpen, onClose }) {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-[popIn_200ms_ease-out]">
-      <div className="w-full max-w-md bg-[var(--bg-surface)] rounded-2xl shadow-2xl border border-[var(--bg-surface-lit)] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pb-20 sm:pb-4 bg-black/60 backdrop-blur-md animate-[popIn_200ms_ease-out]">
+      <div className="w-full max-w-md bg-[var(--bg-surface)] rounded-2xl shadow-2xl border border-[var(--bg-surface-lit)] overflow-hidden flex flex-col max-h-[80dvh] sm:max-h-[85vh]">
         <header className="flex justify-between items-center p-4 px-6 border-b border-[var(--bg-surface-lit)] bg-[var(--bg-surface)]">
           <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--status-red)]">
             <AlertTriangle size={20} /> Clear Data

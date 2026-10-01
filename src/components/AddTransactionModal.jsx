@@ -107,12 +107,12 @@ export default function AddTransactionModal({ isOpen, onClose }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-2 sm:p-4 pb-20 sm:pb-4 bg-black/50 backdrop-blur-md"
       onClick={handleBackdropClick}
     >
       <div
         ref={modalRef}
-        className="bg-[var(--bg-surface)] w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden modal-enter flex flex-col max-h-[90vh]"
+        className="bg-[var(--bg-surface)] w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden modal-enter flex flex-col max-h-[80dvh] sm:max-h-[85vh]"
       >
         {/* Modal Header */}
         <div className="p-4 px-6 flex justify-between items-center border-b border-[var(--bg-surface-lit)] shrink-0 bg-[var(--bg-surface)] z-20">
