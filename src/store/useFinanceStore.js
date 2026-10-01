@@ -219,6 +219,21 @@ export const useFinanceStore = create(
         get().triggerAutoSync();
       },
 
+      updateWorkspaceSettings: (partialSettings) => {
+        const { activeWorkspaceId, workspaceSettings, transactions } = get();
+        const activeSettings = workspaceSettings[activeWorkspaceId] || defaultSettings;
+        const newSettings = {
+          ...workspaceSettings,
+          [activeWorkspaceId]: {
+            ...activeSettings,
+            ...partialSettings,
+          },
+        };
+        const updatedWorkspaceSettings = recalculateBudgets(transactions, newSettings);
+        set((state) => ({ workspaceSettings: updatedWorkspaceSettings, pendingSyncCount: state.pendingSyncCount + 1 }));
+        get().triggerAutoSync();
+      },
+
       updateBudget: (category, limit) => {
         const { activeWorkspaceId, workspaceSettings } = get();
         const activeSettings = workspaceSettings[activeWorkspaceId] || defaultSettings;

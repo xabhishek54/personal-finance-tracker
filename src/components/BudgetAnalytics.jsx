@@ -442,8 +442,9 @@ export default function BudgetAnalytics() {
 
               <div className="p-4 px-6 border-t border-[var(--bg-surface-lit)] bg-[var(--bg-surface)] shrink-0 flex justify-end">
                 <button
+                  type="button"
                   onClick={handleSaveBudgets}
-                  className="w-full sm:w-auto px-6 py-3 bg-[var(--accent-violet)] text-white text-xs font-bold rounded-xl shadow-md hover:opacity-95 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-6 py-3 bg-[var(--accent-violet)] text-white text-xs font-bold rounded-xl shadow-md hover:opacity-95 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Save size={15} />
                   <span>Save Allowances</span>
