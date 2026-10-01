@@ -21,7 +21,7 @@ export default function SyncIndicator() {
     const handleManualSync = () => {
       setIsOnline(navigator.onLine);
       if (navigator.onLine) {
-        syncWithSupabase().then(() => {
+        syncWithSupabase(true).then(() => {
           setJustSynced(true);
           setTimeout(() => setJustSynced(false), 2000);
         });

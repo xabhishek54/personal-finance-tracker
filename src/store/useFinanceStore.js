@@ -469,7 +469,12 @@ export const useFinanceStore = create(
       },
 
       // --- SUPABASE SYNC LOGIC ---
-      syncWithSupabase: async () => {
+      syncWithSupabase: async (isManual = false) => {
+        if (!isManual && !get().autoSyncEnabled) {
+          // Automatic background sync is disabled by user setting
+          return;
+        }
+
         if (!navigator.onLine) {
           set({ syncError: 'Offline mode active. Changes saved locally.' });
           return;

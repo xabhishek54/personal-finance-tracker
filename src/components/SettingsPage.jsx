@@ -107,7 +107,7 @@ export default function SettingsPage() {
               </div>
 
               <button
-                onClick={() => syncWithSupabase()}
+                onClick={() => syncWithSupabase(true)}
                 disabled={isSyncing}
                 className="px-3.5 py-2 rounded-xl bg-[var(--accent-violet)] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:opacity-95 active:scale-95 transition-all disabled:opacity-50 shrink-0"
               >

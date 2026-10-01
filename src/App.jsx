@@ -234,7 +234,7 @@ function AppContent() {
 
   const handleRefresh = async () => {
     window.dispatchEvent(new Event('manual-sync'));
-    await syncWithSupabase();
+    await syncWithSupabase(true);
   };
 
   const isSettingsPage = location.pathname === '/settings';
