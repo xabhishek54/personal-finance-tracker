@@ -282,6 +282,8 @@ export const useFinanceStore = create(
           id,
           ...tx,
           settled: tx.settled ?? false,
+          settledAmount: tx.settledAmount ?? (tx.settled ? Number(tx.amount || 0) : 0),
+          settlements: Array.isArray(tx.settlements) ? tx.settlements : [],
           createdAt: tx.createdAt || nowIso,
           updatedAt: nowIso,
           workspaceId: tx.workspaceId || get().activeWorkspaceId || 'personal',
@@ -395,15 +397,65 @@ export const useFinanceStore = create(
         const tx = get().transactions.find((t) => t.id === id);
         if (!tx || tx.settled) return;
 
-        get().updateTransaction(id, { settled: true });
+        const totalAmount = Number(tx.amount || 0);
+        const currentSettled = Number(tx.settledAmount || 0);
+        const remainingToSettle = Math.max(0, totalAmount - currentSettled);
+
+        get().updateTransaction(id, {
+          settled: true,
+          settledAmount: totalAmount,
+        });
+
+        if (remainingToSettle > 0) {
+          const counterTx = {
+            amount: remainingToSettle,
+            type: tx.type === 'Lend' ? 'Income' : 'Expense',
+            category: 'Lend / Borrow',
+            recipient: `Settlement: ${tx.recipient || ''}`,
+            method: tx.method || 'Cash',
+            note: `Full settlement for ${tx.type === 'Lend' ? 'Lent' : 'Borrowed'} money`,
+            date: new Date().toISOString(),
+            settled: true,
+            workspaceId: get().activeWorkspaceId,
+          };
+
+          get().addTransaction(counterTx);
+        }
+      },
+
+      settlePartialAmount: (id, partialAmount, note) => {
+        const tx = get().transactions.find((t) => t.id === id);
+        if (!tx || tx.settled) return;
+
+        const pay = Math.max(0, Number(partialAmount));
+        if (pay <= 0) return;
+
+        const totalAmount = Number(tx.amount || 0);
+        const currentSettled = Number(tx.settledAmount || 0);
+        const newSettledAmount = Math.min(totalAmount, currentSettled + pay);
+        const isFullySettled = newSettledAmount >= totalAmount;
+
+        const currentSettlements = Array.isArray(tx.settlements) ? tx.settlements : [];
+        const newSettlement = {
+          id: `set_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          amount: pay,
+          date: new Date().toISOString(),
+          note: note || '',
+        };
+
+        get().updateTransaction(id, {
+          settledAmount: newSettledAmount,
+          settled: isFullySettled,
+          settlements: [...currentSettlements, newSettlement],
+        });
 
         const counterTx = {
-          amount: tx.amount,
+          amount: pay,
           type: tx.type === 'Lend' ? 'Income' : 'Expense',
           category: 'Lend / Borrow',
-          recipient: `Settlement: ${tx.recipient || ''}`,
-          method: tx.method,
-          note: `Settled ${tx.type === 'Lend' ? 'Lent' : 'Borrowed'} money`,
+          recipient: `Partial Settlement: ${tx.recipient || 'Unknown'}`,
+          method: tx.method || 'Cash',
+          note: note ? `Partial Settlement: ${note}` : `Partial settlement for ${tx.type === 'Lend' ? 'Lent' : 'Borrowed'} money`,
           date: new Date().toISOString(),
           settled: true,
           workspaceId: get().activeWorkspaceId,
@@ -536,13 +588,13 @@ export const useFinanceStore = create(
           if (!remoteSettings) {
             await supabase.from('user_settings').upsert(settingsPayload);
           } else {
-            if (remoteSettings.workspaces) set({ workspaces: remoteSettings.workspaces });
-            if (remoteSettings.active_workspace_id) set({ activeWorkspaceId: remoteSettings.active_workspace_id });
-            if (remoteSettings.workspace_settings) set({ workspaceSettings: remoteSettings.workspace_settings });
+            // First push local workspace settings to remote so local budget caps (e.g. 1500) persist to Supabase
+            await supabase.from('user_settings').upsert(settingsPayload);
+
+            if (remoteSettings.workspaces && get().pendingSyncCount === 0) set({ workspaces: remoteSettings.workspaces });
+            if (remoteSettings.active_workspace_id && get().pendingSyncCount === 0) set({ activeWorkspaceId: remoteSettings.active_workspace_id });
             if (remoteSettings.theme) set({ theme: remoteSettings.theme });
             if (remoteSettings.pin_platforms) set({ pinPlatforms: remoteSettings.pin_platforms });
-            
-            await supabase.from('user_settings').upsert(settingsPayload);
           }
 
           // 2. Sync Transactions
@@ -559,6 +611,8 @@ export const useFinanceStore = create(
               note: t.note || '',
               date: t.date,
               settled: Boolean(t.settled),
+              settled_amount: Number(t.settledAmount || (t.settled ? t.amount : 0)),
+              settlements: Array.isArray(t.settlements) ? t.settlements : [],
               created_at: t.createdAt || new Date().toISOString(),
               updated_at: t.updatedAt || new Date().toISOString(),
             }));
@@ -587,6 +641,8 @@ export const useFinanceStore = create(
               note: d.note,
               date: d.date,
               settled: Boolean(d.settled),
+              settledAmount: d.settled_amount !== undefined && d.settled_amount !== null ? Number(d.settled_amount) : (d.settled ? Number(d.amount) : 0),
+              settlements: Array.isArray(d.settlements) ? d.settlements : [],
               workspaceId: d.workspace_id || 'personal',
               createdAt: d.created_at,
               updatedAt: d.updated_at,
